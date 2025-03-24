@@ -1,0 +1,26 @@
+-r base.txt
+
+# Development tools
+flake8==7.1.1
+black==24.8.0
+isort==5.13.2
+mypy==1.9.0
+django-stubs==4.2.7
+
+# Testing
+pytest==7.4.3
+pytest-django==4.7.0
+pytest-factoryboy==2.7.0
+Faker==36.1.0
+pytest-cov==6.0.0
+
+# Debugging
+django-debug-toolbar==5.1.0
+
+# Logging
+loguru==0.7.3
+
+# File watching
+watchdog==6.0.0
+argh==0.26.2
+PyYAML==5.3.1
