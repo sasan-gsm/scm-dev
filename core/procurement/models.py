@@ -1,9 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
-from core.models import TimeStampedModel
-from materials.models import Material
-from request.models import RequestItem
+from core.common.models import TimeStampedModel
+from core.materials.models import Material
+from core.request.models import RequestItem
 
 
 class Supplier(TimeStampedModel):

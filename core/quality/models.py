@@ -1,8 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
-from core.models import TimeStampedModel
-from inventory.models import InventoryTransaction
+from core.common.models import TimeStampedModel
+from core.inventory.models import InventoryTransaction
 
 
 class QualityCheck(TimeStampedModel):

@@ -2,8 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 from core.models import TimeStampedModel
-from projects.models import Project
-from materials.models import Material
+from core.projects.models import Project
+from core.materials.models import Material
 
 
 class RequestList(TimeStampedModel):
