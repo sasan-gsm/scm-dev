@@ -20,6 +20,7 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
+    path("api/dashboard/", include("core.dashboard.api.urls", namespace="dashboard")),
     # path(
     #     "swagger/",
     #     schema_view.with_ui("swagger", cache_timeout=0),
