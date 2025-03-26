@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from .base import *  # noqa
 from .base import BASE_DIR
 from os import getenv, path
-
+from datetime import timedelta
 
 local_env_file = path.join(BASE_DIR, ".envs", ".env.local")
 
@@ -16,9 +16,7 @@ DEBUG = getenv("DEBUG")
 
 SITE_NAME = getenv("SITE_NAME")
 
-INTERNAL_IPS = [
-    "127.0.0.1",
-]
+INTERNAL_IPS = ("127.0.0.1",)
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
 

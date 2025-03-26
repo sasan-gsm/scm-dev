@@ -1,9 +1,12 @@
 from django.db import models
-from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 from core.common.models import TimeStampedModel
 from core.materials.models import Material
 from core.request.models import RequestItem
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 class Supplier(TimeStampedModel):
@@ -23,6 +26,8 @@ class Supplier(TimeStampedModel):
     class Meta:
         verbose_name = _("Supplier")
         verbose_name_plural = _("Suppliers")
+        db_table = "suppliers"
+        ordering = ["name"]
 
 
 class PurchaseOrder(TimeStampedModel):
@@ -65,6 +70,7 @@ class PurchaseOrder(TimeStampedModel):
     class Meta:
         verbose_name = _("Purchase Order")
         verbose_name_plural = _("Purchase Orders")
+        db_table = "purchase_orders"
 
 
 class PurchaseOrderItem(TimeStampedModel):
@@ -98,3 +104,4 @@ class PurchaseOrderItem(TimeStampedModel):
     class Meta:
         verbose_name = _("Purchase Order Item")
         verbose_name_plural = _("Purchase Order Items")
+        db_table = "purchase_order_items"

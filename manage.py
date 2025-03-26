@@ -3,6 +3,7 @@
 
 import os
 import sys
+# from django.core.management import execute_from_command_line
 
 
 def main():
@@ -21,3 +22,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    # # If you want to add a specific command for WebView
+    # if len(sys.argv) > 1 and sys.argv[1] == "webview":
+    #     sys.argv = ["manage.py", "runserver", "0.0.0.0:8000"]
+
+    # execute_from_command_line(sys.argv)

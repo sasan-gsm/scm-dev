@@ -4,9 +4,6 @@ from os import getenv, path
 from loguru import logger
 from datetime import timedelta
 
-
-# from pathlib import Path
-
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 local_env_file = path.join(BASE_DIR, ".envs", ".env.local")
@@ -79,9 +76,11 @@ MIDDLEWARE = [
 AUTHENTICATION_BACKENDS = (
     "core.accounts.backends.EmailPhoneUsernameAuthenticationBackend",  # custom authentication
     "allauth.account.auth_backends.AuthenticationBackend",  # Allows allauth authentication
+    "core.accounts.backends.CustomPermissionBackend",
+    "django.contrib.auth.backends.ModelBackend",
 )
 
-ROOT_URLCONF = "core.urls"
+ROOT_URLCONF = "scm.urls"
 
 TEMPLATES = [
     {
@@ -99,7 +98,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "core.wsgi.application"
+WSGI_APPLICATION = "scm.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -137,27 +136,26 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 # Redis Cache Configuration
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "PARSER_CLASS": "redis.connection.HiredisParser",
-            "CONNECTION_POOL_KWARGS": {"max_connections": 100},
-            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
-            "IGNORE_EXCEPTIONS": True,
-        },
-        "KEY_PREFIX": "SCM",
-    }
-}
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django_redis.cache.RedisCache",
+#         "LOCATION": "redis://127.0.0.1:6379/1",
+#         "OPTIONS": {
+#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+#             "CONNECTION_POOL_KWARGS": {"max_connections": 100},
+#             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+#             "IGNORE_EXCEPTIONS": True,
+#         },
+#         "KEY_PREFIX": "SCM",
+#     }
+# }
 
 # Cache time to live is 15 minutes (in seconds)
-CACHE_TTL = 60 * 15
+# CACHE_TTL = 60 * 15
 
-# Session cache configuration
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "default"
+# # Session cache configuration
+# SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+# SESSION_CACHE_ALIAS = "default"
 
 # Celery Configuration
 CELERY_BROKER_URL = getenv("CELERY_BROKER")
@@ -230,7 +228,7 @@ REST_AUTH = {
     "USER_DETAILS_SERIALIZER": "core.accounts.serializers.UserDetailsSerializer",  # Updated path
 }
 
-ACCOUNT_AUTHENTICATION_METHOD = "username_email"  # Allow both username and email
+ACCOUNT_AUTHENTICATION_METHOD = "username"  # Allow both username and email
 ACCOUNT_EMAIL_REQUIRED = False  # Require email for signup
 ACCOUNT_UNIQUE_EMAIL = True  # Ensure email is unique
 ACCOUNT_USERNAME_REQUIRED = True  # Make username mandatory
@@ -239,7 +237,7 @@ ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 7  # Expiration for confirmation emails
 
 AUTH_USER_MODEL = "accounts.User"
 
-LANGUAGE_CODE = "fa-ir"
+LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
 

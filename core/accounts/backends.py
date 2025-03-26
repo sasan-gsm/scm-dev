@@ -1,6 +1,5 @@
 from .models import User, Permission
 from django.contrib.auth.backends import ModelBackend
-from django.db.models import Q
 import re
 
 

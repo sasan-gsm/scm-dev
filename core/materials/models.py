@@ -1,7 +1,10 @@
 from django.db import models
-from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 from core.common.models import TimeStampedModel
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 class MaterialCategory(TimeStampedModel):
@@ -21,6 +24,7 @@ class MaterialCategory(TimeStampedModel):
     class Meta:
         verbose_name = _("Material Category")
         verbose_name_plural = _("Material Categories")
+        db_table = "material_categories"
 
 
 class Material(TimeStampedModel):
@@ -51,3 +55,4 @@ class Material(TimeStampedModel):
     class Meta:
         verbose_name = _("Material")
         verbose_name_plural = _("Materials")
+        db_table = "materials"

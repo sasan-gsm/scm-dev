@@ -1,10 +1,13 @@
 from django.db import models
-from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 from core.common.models import TimeStampedModel
 from core.materials.models import Material
 from core.projects.models import Project
 from core.procurement.models import PurchaseOrderItem
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 class Warehouse(TimeStampedModel):
@@ -37,6 +40,7 @@ class InventoryLocation(TimeStampedModel):
         unique_together = ("warehouse", "code")
         verbose_name = _("Inventory Location")
         verbose_name_plural = _("Inventory Locations")
+        db_table = "inventory"
 
 
 class InventoryItem(TimeStampedModel):
@@ -77,6 +81,7 @@ class InventoryItem(TimeStampedModel):
         unique_together = ("material", "warehouse", "location")
         verbose_name = _("Inventory Item")
         verbose_name_plural = _("Inventory Items")
+        db_table = "inventory_items"
 
 
 class InventoryTransaction(TimeStampedModel):
@@ -148,3 +153,4 @@ class InventoryTransaction(TimeStampedModel):
     class Meta:
         verbose_name = _("Inventory Transaction")
         verbose_name_plural = _("Inventory Transactions")
+        db_table = "inventory_transactions"

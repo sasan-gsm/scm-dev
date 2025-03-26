@@ -1,7 +1,10 @@
 from django.db import models
-from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 from core.common.models import TimeStampedModel
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 class Project(TimeStampedModel):
@@ -42,3 +45,4 @@ class Project(TimeStampedModel):
     class Meta:
         verbose_name = _("Project")
         verbose_name_plural = _("Projects")
+        db_table = "project"

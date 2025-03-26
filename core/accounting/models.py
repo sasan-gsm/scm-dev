@@ -1,9 +1,12 @@
 from django.db import models
-from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
-from core.models import TimeStampedModel
+from core.common.models import TimeStampedModel
 from core.inventory.models import InventoryTransaction
 from core.projects.models import Project
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 class AccountingEntry(TimeStampedModel):
@@ -60,6 +63,7 @@ class AccountingEntry(TimeStampedModel):
     class Meta:
         verbose_name = _("Accounting Entry")
         verbose_name_plural = _("Accounting Entries")
+        db_table = "accounting_entry"
 
 
 class GeneralExpense(TimeStampedModel):
@@ -105,6 +109,7 @@ class GeneralExpense(TimeStampedModel):
     class Meta:
         verbose_name = _("General Expense")
         verbose_name_plural = _("General Expenses")
+        db_table = "general_expense"
 
 
 class ProjectIncome(TimeStampedModel):
@@ -140,3 +145,4 @@ class ProjectIncome(TimeStampedModel):
     class Meta:
         verbose_name = _("Project Income")
         verbose_name_plural = _("Project Incomes")
+        db_table = "project_income"

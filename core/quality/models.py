@@ -1,8 +1,11 @@
 from django.db import models
-from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 from core.common.models import TimeStampedModel
 from core.inventory.models import InventoryTransaction
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 class QualityCheck(TimeStampedModel):
@@ -47,3 +50,4 @@ class QualityCheck(TimeStampedModel):
     class Meta:
         verbose_name = _("Quality Check")
         verbose_name_plural = _("Quality Checks")
+        db_table = "quality_checks"

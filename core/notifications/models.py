@@ -1,9 +1,12 @@
 from django.db import models
-from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
 from core.common.models import TimeStampedModel
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 class AlertRule(TimeStampedModel):
@@ -60,6 +63,7 @@ class AlertRule(TimeStampedModel):
     class Meta:
         verbose_name = _("Alert Rule")
         verbose_name_plural = _("Alert Rules")
+        db_table = "alert_rules"
 
 
 class Notification(TimeStampedModel):
@@ -101,3 +105,4 @@ class Notification(TimeStampedModel):
         verbose_name = _("Notification")
         verbose_name_plural = _("Notifications")
         ordering = ["-created_at"]
+        db_table = "notifications"

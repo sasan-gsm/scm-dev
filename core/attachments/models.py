@@ -1,9 +1,12 @@
 from django.db import models
-from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
-from core.models import TimeStampedModel
+from core.common.models import TimeStampedModel
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 def attachment_upload_path(instance, filename):
@@ -45,3 +48,4 @@ class Attachment(TimeStampedModel):
     class Meta:
         verbose_name = _("Attachment")
         verbose_name_plural = _("Attachments")
+        db_table = "attachments"

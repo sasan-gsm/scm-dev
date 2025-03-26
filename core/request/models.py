@@ -1,9 +1,12 @@
 from django.db import models
-from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
-from core.models import TimeStampedModel
+from core.common.models import TimeStampedModel
 from core.projects.models import Project
 from core.materials.models import Material
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 class RequestList(TimeStampedModel):
@@ -50,6 +53,7 @@ class RequestList(TimeStampedModel):
     class Meta:
         verbose_name = _("Request List")
         verbose_name_plural = _("Request Lists")
+        db_table = "request_lists"
 
 
 class RequestItem(TimeStampedModel):
@@ -90,3 +94,4 @@ class RequestItem(TimeStampedModel):
     class Meta:
         verbose_name = _("Request Item")
         verbose_name_plural = _("Request Items")
+        db_table = "request_items"
