@@ -112,6 +112,32 @@ class GeneralExpense(TimeStampedModel):
         db_table = "general_expense"
 
 
+class ExpenseCategory(TimeStampedModel):
+    """
+    Categories for classifying expenses.
+    """
+
+    name = models.CharField(max_length=100, unique=True, verbose_name=_("Name"))
+    description = models.TextField(blank=True, verbose_name=_("Description"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Is Active"))
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="subcategories",
+        verbose_name=_("Parent Category"),
+    )
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = _("Expense Category")
+        verbose_name_plural = _("Expense Categories")
+        db_table = "expense_category"
+
+
 class ProjectIncome(TimeStampedModel):
     project = models.ForeignKey(
         Project,
@@ -146,3 +172,169 @@ class ProjectIncome(TimeStampedModel):
         verbose_name = _("Project Income")
         verbose_name_plural = _("Project Incomes")
         db_table = "project_income"
+
+
+class Budget(TimeStampedModel):
+    """
+    Budget model for tracking project or department budgets.
+    """
+
+    STATUS_CHOICES = [
+        ("draft", _("Draft")),
+        ("active", _("Active")),
+        ("closed", _("Closed")),
+    ]
+
+    budget_number = models.CharField(
+        max_length=50, unique=True, verbose_name=_("Budget Number")
+    )
+    name = models.CharField(max_length=255, verbose_name=_("Name"))
+    description = models.TextField(blank=True, verbose_name=_("Description"))
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="budgets",
+        verbose_name=_("Project"),
+    )
+    start_date = models.DateField(verbose_name=_("Start Date"))
+    end_date = models.DateField(verbose_name=_("End Date"))
+    total_amount = models.DecimalField(
+        max_digits=14, decimal_places=2, verbose_name=_("Total Amount")
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="draft",
+        verbose_name=_("Status"),
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="created_budgets",
+        verbose_name=_("Created By"),
+    )
+
+    def __str__(self):
+        return f"{self.budget_number} - {self.name}"
+
+    class Meta:
+        verbose_name = _("Budget")
+        verbose_name_plural = _("Budgets")
+        db_table = "budget"
+
+
+class BudgetItem(TimeStampedModel):
+    """
+    Individual line items within a budget.
+    """
+
+    budget = models.ForeignKey(
+        Budget,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name=_("Budget"),
+    )
+    name = models.CharField(max_length=255, verbose_name=_("Name"))
+    description = models.TextField(blank=True, verbose_name=_("Description"))
+    amount = models.DecimalField(
+        max_digits=14, decimal_places=2, verbose_name=_("Amount")
+    )
+
+    def __str__(self):
+        return f"{self.budget.budget_number} - {self.name}"
+
+    class Meta:
+        verbose_name = _("Budget Item")
+        verbose_name_plural = _("Budget Items")
+        db_table = "budget_item"
+
+
+class Invoice(TimeStampedModel):
+    """
+    Invoice model for tracking invoices from suppliers.
+    """
+
+    STATUS_CHOICES = [
+        ("unpaid", _("Unpaid")),
+        ("paid", _("Paid")),
+        ("cancelled", _("Cancelled")),
+    ]
+
+    number = models.CharField(
+        max_length=50, unique=True, verbose_name=_("Invoice Number")
+    )
+    supplier = models.ForeignKey(
+        "procurement.Supplier",  # Assuming this is the correct path
+        on_delete=models.PROTECT,
+        related_name="invoices",
+        verbose_name=_("Supplier"),
+    )
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="invoices",
+        verbose_name=_("Project"),
+    )
+    invoice_date = models.DateField(verbose_name=_("Invoice Date"))
+    due_date = models.DateField(verbose_name=_("Due Date"))
+    amount = models.DecimalField(
+        max_digits=14, decimal_places=2, verbose_name=_("Amount")
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="unpaid",
+        verbose_name=_("Status"),
+    )
+    notes = models.TextField(blank=True, verbose_name=_("Notes"))
+
+    def __str__(self):
+        return f"{self.number} - {self.supplier.name}"
+
+    class Meta:
+        verbose_name = _("Invoice")
+        verbose_name_plural = _("Invoices")
+        db_table = "invoice"
+
+
+class Payment(TimeStampedModel):
+    """
+    Payment model for tracking payments made to suppliers.
+    """
+
+    reference = models.CharField(
+        max_length=50, unique=True, verbose_name=_("Payment Reference")
+    )
+    invoice = models.ForeignKey(
+        Invoice,
+        on_delete=models.PROTECT,
+        related_name="payments",
+        verbose_name=_("Invoice"),
+    )
+    amount = models.DecimalField(
+        max_digits=14, decimal_places=2, verbose_name=_("Amount")
+    )
+    payment_date = models.DateField(verbose_name=_("Payment Date"))
+    payment_method = models.CharField(max_length=50, verbose_name=_("Payment Method"))
+    transaction_id = models.CharField(
+        max_length=100, blank=True, verbose_name=_("Transaction ID")
+    )
+    notes = models.TextField(blank=True, verbose_name=_("Notes"))
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="created_payments",
+        verbose_name=_("Created By"),
+    )
+
+    def __str__(self):
+        return f"{self.reference} - {self.invoice.number}"
+
+    class Meta:
+        verbose_name = _("Payment")
+        verbose_name_plural = _("Payments")
+        db_table = "payment"

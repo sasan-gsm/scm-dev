@@ -14,6 +14,7 @@ class Warehouse(TimeStampedModel):
     name = models.CharField(max_length=100, verbose_name=_("Name"))
     code = models.CharField(max_length=20, unique=True, verbose_name=_("Code"))
     location = models.CharField(max_length=200, blank=True, verbose_name=_("Location"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Is Active"))
 
     def __str__(self):
         return self.name
@@ -21,6 +22,7 @@ class Warehouse(TimeStampedModel):
     class Meta:
         verbose_name = _("Warehouse")
         verbose_name_plural = _("Warehouses")
+        db_table = "inventory_warehouses"
 
 
 class InventoryLocation(TimeStampedModel):
@@ -40,7 +42,7 @@ class InventoryLocation(TimeStampedModel):
         unique_together = ("warehouse", "code")
         verbose_name = _("Inventory Location")
         verbose_name_plural = _("Inventory Locations")
-        db_table = "inventory"
+        db_table = "inventory_locations"
 
 
 class InventoryItem(TimeStampedModel):

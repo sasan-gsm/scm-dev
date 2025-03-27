@@ -5,80 +5,107 @@ from core.projects.models import Project
 from core.materials.models import Material
 from django.contrib.auth import get_user_model
 
-
 User = get_user_model()
 
 
-class RequestList(TimeStampedModel):
+class Request(TimeStampedModel):
+    """
+    Request model for material requests from users.
+    """
+
     STATUS_CHOICES = [
         ("draft", _("Draft")),
-        ("submitted", _("Submitted")),
+        ("pending_approval", _("Pending Approval")),
         ("approved", _("Approved")),
         ("rejected", _("Rejected")),
+        ("in_progress", _("In Progress")),
         ("completed", _("Completed")),
+        ("cancelled", _("Cancelled")),
     ]
 
+    PRIORITY_CHOICES = [
+        ("low", _("Low")),
+        ("medium", _("Medium")),
+        ("high", _("High")),
+        ("urgent", _("Urgent")),
+    ]
+
+    number = models.CharField(
+        max_length=50, unique=True, verbose_name=_("Request Number")
+    )
+    requester = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="requests",
+        verbose_name=_("Requester"),
+    )
     project = models.ForeignKey(
         Project,
-        on_delete=models.CASCADE,
-        related_name="request_lists",
+        on_delete=models.PROTECT,
+        related_name="requests",
         verbose_name=_("Project"),
     )
-    title = models.CharField(max_length=200, verbose_name=_("Title"))
-    description = models.TextField(blank=True, verbose_name=_("Description"))
-    created_by = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        related_name="created_requests",
-        verbose_name=_("Created By"),
-    )
+    request_date = models.DateField(verbose_name=_("Request Date"))
+    required_date = models.DateField(verbose_name=_("Required Date"))
     status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default="draft", verbose_name=_("Status")
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="draft",
+        verbose_name=_("Status"),
     )
-    approved_by = models.ForeignKey(
-        User,
-        null=True,
-        blank=True,
-        on_delete=models.PROTECT,
-        related_name="approved_requests",
-        verbose_name=_("Approved By"),
+    priority = models.CharField(
+        max_length=10,
+        choices=PRIORITY_CHOICES,
+        default="medium",
+        verbose_name=_("Priority"),
     )
-    approved_at = models.DateTimeField(
-        null=True, blank=True, verbose_name=_("Approved At")
+    notes = models.TextField(blank=True, verbose_name=_("Notes"))
+    fulfillment_date = models.DateField(
+        null=True, blank=True, verbose_name=_("Fulfillment Date")
     )
 
     def __str__(self):
-        return f"{self.project.number} - {self.title}"
+        return f"{self.number} - {self.requester.username}"
 
     class Meta:
-        verbose_name = _("Request List")
-        verbose_name_plural = _("Request Lists")
-        db_table = "request_lists"
+        verbose_name = _("Request")
+        verbose_name_plural = _("Requests")
+        db_table = "request"
 
 
 class RequestItem(TimeStampedModel):
+    """
+    Individual items within a request.
+    """
+
     STATUS_CHOICES = [
         ("pending", _("Pending")),
-        ("approved", _("Approved")),
-        ("procured", _("Procured")),
-        ("received", _("Received")),
-        ("distributed", _("Distributed")),
+        ("fulfilled", _("Fulfilled")),
+        ("partially_fulfilled", _("Partially Fulfilled")),
+        ("cancelled", _("Cancelled")),
     ]
 
-    request_list = models.ForeignKey(
-        RequestList,
+    request = models.ForeignKey(
+        Request,
         on_delete=models.CASCADE,
         related_name="items",
-        verbose_name=_("Request List"),
+        verbose_name=_("Request"),
     )
     material = models.ForeignKey(
-        Material, on_delete=models.PROTECT, verbose_name=_("Material")
+        Material,
+        on_delete=models.PROTECT,
+        related_name="request_items",
+        verbose_name=_("Material"),
     )
     quantity = models.DecimalField(
         max_digits=10, decimal_places=2, verbose_name=_("Quantity")
     )
-    technical_specs = models.JSONField(
-        default=dict, verbose_name=_("Technical Specifications")
+    quantity_fulfilled = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, verbose_name=_("Quantity Fulfilled")
+    )
+    is_fulfilled = models.BooleanField(default=False, verbose_name=_("Is Fulfilled"))
+    fulfillment_date = models.DateField(
+        null=True, blank=True, verbose_name=_("Fulfillment Date")
     )
     status = models.CharField(
         max_length=20,
@@ -89,9 +116,9 @@ class RequestItem(TimeStampedModel):
     notes = models.TextField(blank=True, verbose_name=_("Notes"))
 
     def __str__(self):
-        return f"{self.material.name} - {self.quantity}"
+        return f"{self.request.number} - {self.material.name} ({self.quantity})"
 
     class Meta:
         verbose_name = _("Request Item")
         verbose_name_plural = _("Request Items")
-        db_table = "request_items"
+        db_table = "request_item"

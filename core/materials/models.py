@@ -56,3 +56,36 @@ class Material(TimeStampedModel):
         verbose_name = _("Material")
         verbose_name_plural = _("Materials")
         db_table = "materials"
+
+
+class MaterialPriceHistory(TimeStampedModel):
+    """
+    Model to track material price history.
+    """
+
+    material = models.ForeignKey(
+        Material,
+        on_delete=models.CASCADE,
+        related_name="price_history",
+        verbose_name=_("Material"),
+    )
+    price = models.DecimalField(
+        max_digits=10, decimal_places=2, verbose_name=_("Price")
+    )
+    effective_date = models.DateField(verbose_name=_("Effective Date"))
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="recorded_material_prices",
+        verbose_name=_("Recorded By"),
+    )
+    notes = models.TextField(blank=True, verbose_name=_("Notes"))
+
+    def __str__(self):
+        return f"{self.material.code} - {self.price} ({self.effective_date})"
+
+    class Meta:
+        verbose_name = _("Material Price History")
+        verbose_name_plural = _("Material Price History")
+        db_table = "material_price_history"
+        ordering = ["-effective_date"]

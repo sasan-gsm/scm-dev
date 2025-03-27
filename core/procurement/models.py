@@ -30,6 +30,35 @@ class Supplier(TimeStampedModel):
         ordering = ["name"]
 
 
+class SupplierContact(TimeStampedModel):
+    """
+    Contact information for suppliers.
+    """
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.CASCADE,
+        related_name="contacts",
+        verbose_name=_("Supplier"),
+    )
+    name = models.CharField(max_length=255, verbose_name=_("Name"))
+    position = models.CharField(max_length=255, blank=True, verbose_name=_("Position"))
+    email = models.EmailField(blank=True, verbose_name=_("Email"))
+    phone = models.CharField(max_length=50, blank=True, verbose_name=_("Phone"))
+    is_primary = models.BooleanField(
+        default=False, verbose_name=_("Is Primary Contact")
+    )
+    notes = models.TextField(blank=True, verbose_name=_("Notes"))
+
+    def __str__(self):
+        return f"{self.name} - {self.supplier.name}"
+
+    class Meta:
+        verbose_name = _("Supplier Contact")
+        verbose_name_plural = _("Supplier Contacts")
+        db_table = "supplier_contact"
+
+
 class PurchaseOrder(TimeStampedModel):
     STATUS_CHOICES = [
         ("draft", _("Draft")),

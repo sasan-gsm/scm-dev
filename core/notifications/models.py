@@ -84,6 +84,11 @@ class Notification(TimeStampedModel):
         related_name="notifications",
         verbose_name=_("Alert Rule"),
     )
+    # Add notification_type field to match serializer and repository
+    notification_type = models.CharField(
+        max_length=50, null=True, blank=True, verbose_name=_("Notification Type")
+    )
+    read_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Read At"))
 
     # Link to related object
     content_type = models.ForeignKey(
@@ -106,3 +111,57 @@ class Notification(TimeStampedModel):
         verbose_name_plural = _("Notifications")
         ordering = ["-created_at"]
         db_table = "notifications"
+
+
+class NotificationSetting(TimeStampedModel):
+    """User notification preferences for different notification types."""
+
+    NOTIFICATION_TYPES = [
+        ("inventory_low", _("Inventory Low")),
+        ("qc_required", _("Quality Check Required")),
+        ("po_received", _("Purchase Order Received")),
+        ("request_approved", _("Request Approved")),
+        ("system", _("System Notifications")),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="notification_settings",
+        verbose_name=_("User"),
+    )
+    notification_type = models.CharField(
+        max_length=50, choices=NOTIFICATION_TYPES, verbose_name=_("Notification Type")
+    )
+    email_enabled = models.BooleanField(default=True, verbose_name=_("Email Enabled"))
+    push_enabled = models.BooleanField(default=True, verbose_name=_("Push Enabled"))
+    in_app_enabled = models.BooleanField(default=True, verbose_name=_("In-App Enabled"))
+
+    class Meta:
+        verbose_name = _("Notification Setting")
+        verbose_name_plural = _("Notification Settings")
+        db_table = "notification_settings"
+        unique_together = ["user", "notification_type"]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.get_notification_type_display()}"
+
+
+class NotificationTemplate(TimeStampedModel):
+    """Templates for different types of notifications."""
+
+    code = models.CharField(max_length=100, unique=True, verbose_name=_("Code"))
+    notification_type = models.CharField(
+        max_length=50, verbose_name=_("Notification Type")
+    )
+    subject = models.CharField(max_length=200, verbose_name=_("Subject"))
+    body = models.TextField(verbose_name=_("Body"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Is Active"))
+
+    class Meta:
+        verbose_name = _("Notification Template")
+        verbose_name_plural = _("Notification Templates")
+        db_table = "notification_templates"
+
+    def __str__(self):
+        return self.code
