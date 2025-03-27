@@ -2,7 +2,7 @@ from typing import Optional, List
 from django.db.models import Q, QuerySet, Count, F
 
 from core.common.repositories import BaseRepository
-from .models import Material, Category
+from .models import Material, MaterialCategory
 
 
 class MaterialRepository(BaseRepository[Material]):
@@ -69,7 +69,8 @@ class MaterialRepository(BaseRepository[Material]):
             QuerySet of materials with low inventory
         """
         return self.model_class.objects.filter(
-            inventory__quantity__lt=F("min_inventory_level"), alert_enabled=True
+            inventory_items__quantity__lt=F("inventory_items__min_quantity"),
+            inventory_items__monitor_stock_level=True,
         ).distinct()
 
     def get_materials_with_price_history(self) -> QuerySet:
@@ -82,20 +83,20 @@ class MaterialRepository(BaseRepository[Material]):
         return self.model_class.objects.prefetch_related("price_history")
 
 
-class CategoryRepository(BaseRepository[Category]):
+class MaterialCategoryRepository(BaseRepository[MaterialCategory]):
     """
-    Repository for Category model operations.
+    Repository for MaterialCategory model operations.
 
-    Provides data access operations specific to the Category model.
+    Provides data access operations specific to the MaterialCategory model.
     """
 
     def __init__(self):
         """
-        Initialize the repository with the Category model.
+        Initialize the repository with the MaterialCategory model.
         """
-        super().__init__(Category)
+        super().__init__(MaterialCategory)
 
-    def get_by_name(self, name: str) -> Optional[Category]:
+    def get_by_name(self, name: str) -> Optional[MaterialCategory]:
         """
         Retrieve a category by its name.
 
@@ -118,3 +119,24 @@ class CategoryRepository(BaseRepository[Category]):
             QuerySet of categories with annotated material count
         """
         return self.model_class.objects.annotate(material_count=Count("materials"))
+
+    def get_root_categories(self) -> QuerySet:
+        """
+        Get root categories (categories without parents).
+
+        Returns:
+            QuerySet of root categories
+        """
+        return self.model_class.objects.filter(parent__isnull=True)
+
+    def get_subcategories(self, parent_id: int) -> QuerySet:
+        """
+        Get subcategories of a specific category.
+
+        Args:
+            parent_id: The parent category ID
+
+        Returns:
+            QuerySet of subcategories
+        """
+        return self.model_class.objects.filter(parent_id=parent_id)

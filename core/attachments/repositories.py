@@ -56,7 +56,7 @@ class AttachmentRepository(BaseRepository[Attachment]):
         Returns:
             QuerySet of attachments with the specified file type
         """
-        return self.model_class.objects.filter(file_name__endswith=f".{file_type}")
+        return self.model_class.objects.filter(file_type__iexact=file_type)
 
     def get_by_uploader(self, uploader_id: int) -> QuerySet:
         """
@@ -72,7 +72,7 @@ class AttachmentRepository(BaseRepository[Attachment]):
 
     def search(self, query: str) -> QuerySet:
         """
-        Search for attachments by file name or description.
+        Search for attachments by name or description.
 
         Args:
             query: The search query
@@ -81,5 +81,5 @@ class AttachmentRepository(BaseRepository[Attachment]):
             QuerySet of matching attachments
         """
         return self.model_class.objects.filter(
-            Q(file_name__icontains=query) | Q(description__icontains=query)
+            Q(name__icontains=query) | Q(description__icontains=query)
         )

@@ -3,7 +3,14 @@ from django.db.models import Q, QuerySet, Sum, F
 from django.utils import timezone
 
 from core.common.repositories import BaseRepository
-from .models import Invoice, Payment, ExpenseCategory, Expense
+from .models import (
+    Invoice,
+    Payment,
+    ExpenseCategory,
+    GeneralExpense,
+    Budget,
+    BudgetItem,
+)
 
 
 class InvoiceRepository(BaseRepository[Invoice]):
@@ -250,20 +257,20 @@ class ExpenseCategoryRepository(BaseRepository[ExpenseCategory]):
         return self.model_class.objects.filter(is_active=True)
 
 
-class ExpenseRepository(BaseRepository[Expense]):
+class ExpenseRepository(BaseRepository[GeneralExpense]):
     """
-    Repository for Expense model operations.
+    Repository for GeneralExpense model operations.
 
-    Provides data access operations specific to the Expense model.
+    Provides data access operations specific to the GeneralExpense model.
     """
 
     def __init__(self):
         """
-        Initialize the repository with the Expense model.
+        Initialize the repository with the GeneralExpense model.
         """
-        super().__init__(Expense)
+        super().__init__(GeneralExpense)
 
-    def get_by_reference(self, reference: str) -> Optional[Expense]:
+    def get_by_reference(self, reference: str) -> Optional[GeneralExpense]:
         """
         Retrieve an expense by its reference number.
 
@@ -342,3 +349,68 @@ class ExpenseRepository(BaseRepository[Expense]):
             .annotate(total_amount=Sum("amount"))
             .order_by("-total_amount")
         )
+
+
+class BudgetRepository(BaseRepository[Budget]):
+    """
+    Repository for Budget model operations.
+    """
+
+    def __init__(self):
+        """
+        Initialize the repository with the Budget model.
+        """
+        super().__init__(Budget)
+
+    def get_by_project(self, project_id: int) -> Optional[Budget]:
+        """
+        Get the active budget for a specific project.
+
+        Args:
+            project_id: The project ID
+
+        Returns:
+            The active budget if found, None otherwise
+        """
+        try:
+            return self.model_class.objects.filter(
+                project_id=project_id, status="active"
+            ).latest("created_at")
+        except self.model_class.DoesNotExist:
+            return None
+
+    def get_by_status(self, status: str) -> QuerySet:
+        """
+        Get budgets with a specific status.
+
+        Args:
+            status: The status
+
+        Returns:
+            QuerySet of budgets with the specified status
+        """
+        return self.model_class.objects.filter(status=status)
+
+
+class BudgetItemRepository(BaseRepository[BudgetItem]):
+    """
+    Repository for BudgetItem model operations.
+    """
+
+    def __init__(self):
+        """
+        Initialize the repository with the BudgetItem model.
+        """
+        super().__init__(BudgetItem)
+
+    def get_by_budget(self, budget_id: int) -> QuerySet:
+        """
+        Get budget items for a specific budget.
+
+        Args:
+            budget_id: The budget ID
+
+        Returns:
+            QuerySet of budget items for the specified budget
+        """
+        return self.model_class.objects.filter(budget_id=budget_id)

@@ -1,7 +1,6 @@
 from typing import Optional, List
-from django.db.models import Q, QuerySet, Count, Sum, F
+from django.db.models import QuerySet, Count
 from django.utils import timezone
-
 from core.common.repositories import BaseRepository
 from .models import Request, RequestItem
 
@@ -88,17 +87,17 @@ class RequestRepository(BaseRepository[Request]):
             QuerySet of requests within the specified date range
         """
         return self.model_class.objects.filter(
-            created_at__gte=start_date, created_at__lte=end_date
+            request_date__gte=start_date, request_date__lte=end_date
         )
 
-    def get_requests_with_items(self) -> QuerySet:
+    def get_requests_with_item_count(self) -> QuerySet:
         """
-        Get requests with their items prefetched.
+        Get requests with item count annotation.
 
         Returns:
-            QuerySet of requests with prefetched items
+            QuerySet of requests with item_count annotation
         """
-        return self.model_class.objects.prefetch_related("items")
+        return self.model_class.objects.annotate(item_count=Count("items"))
 
 
 class RequestItemRepository(BaseRepository[RequestItem]):
@@ -138,31 +137,20 @@ class RequestItemRepository(BaseRepository[RequestItem]):
         """
         return self.model_class.objects.filter(material_id=material_id)
 
-    def get_pending_fulfillment_items(self) -> QuerySet:
+    def get_pending_items(self) -> QuerySet:
         """
-        Get items that have been approved but not fully fulfilled.
+        Get pending request items.
 
         Returns:
-            QuerySet of items pending fulfillment
+            QuerySet of pending request items
         """
-        return self.model_class.objects.filter(
-            quantity_fulfilled__lt=F("quantity"),
-            request__status="approved",
-            is_fulfilled=False,
-        )
+        return self.model_class.objects.filter(status="pending")
 
-    def get_most_requested_materials(self, limit: int = 10) -> QuerySet:
+    def get_fulfilled_items(self) -> QuerySet:
         """
-        Get most frequently requested materials.
-
-        Args:
-            limit: Maximum number of materials to return
+        Get fulfilled request items.
 
         Returns:
-            QuerySet of most requested materials
+            QuerySet of fulfilled request items
         """
-        return (
-            self.model_class.objects.values("material")
-            .annotate(request_count=Count("id"), total_quantity=Sum("quantity"))
-            .order_by("-request_count")[:limit]
-        )
+        return self.model_class.objects.filter(is_fulfilled=True)

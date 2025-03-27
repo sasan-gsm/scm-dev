@@ -1,16 +1,48 @@
 from typing import Optional, List
-from django.db.models import Q, QuerySet, Count, Avg
-from django.utils import timezone
-
+from django.db.models import QuerySet
 from core.common.repositories import BaseRepository
-from .models import QualityCheck, QualityIssue, QualityParameter
+from .models import QualityCheck, QualityCheckItem, QualityStandard
+
+
+class QualityStandardRepository(BaseRepository[QualityStandard]):
+    """
+    Repository for QualityStandard model operations.
+    """
+
+    def __init__(self):
+        """
+        Initialize the repository with the QualityStandard model.
+        """
+        super().__init__(QualityStandard)
+
+    def get_by_code(self, code: str) -> Optional[QualityStandard]:
+        """
+        Retrieve a quality standard by its code.
+
+        Args:
+            code: The quality standard code
+
+        Returns:
+            The quality standard if found, None otherwise
+        """
+        try:
+            return self.model_class.objects.get(code=code)
+        except self.model_class.DoesNotExist:
+            return None
+
+    def get_active_standards(self) -> QuerySet:
+        """
+        Get active quality standards.
+
+        Returns:
+            QuerySet of active quality standards
+        """
+        return self.model_class.objects.filter(is_active=True)
 
 
 class QualityCheckRepository(BaseRepository[QualityCheck]):
     """
     Repository for QualityCheck model operations.
-
-    Provides data access operations specific to the QualityCheck model.
     """
 
     def __init__(self):
@@ -30,7 +62,7 @@ class QualityCheckRepository(BaseRepository[QualityCheck]):
             The quality check if found, None otherwise
         """
         try:
-            return self.model_class.objects.get(number=number)
+            return self.model_class.objects.get(check_number=number)
         except self.model_class.DoesNotExist:
             return None
 
@@ -46,17 +78,17 @@ class QualityCheckRepository(BaseRepository[QualityCheck]):
         """
         return self.model_class.objects.filter(material_id=material_id)
 
-    def get_by_purchase_order(self, purchase_order_id: int) -> QuerySet:
+    def get_by_project(self, project_id: int) -> QuerySet:
         """
-        Get quality checks for a specific purchase order.
+        Get quality checks for a specific project.
 
         Args:
-            purchase_order_id: The purchase order ID
+            project_id: The project ID
 
         Returns:
-            QuerySet of quality checks for the specified purchase order
+            QuerySet of quality checks for the specified project
         """
-        return self.model_class.objects.filter(purchase_order_id=purchase_order_id)
+        return self.model_class.objects.filter(project_id=project_id)
 
     def get_by_status(self, status: str) -> QuerySet:
         """
@@ -94,16 +126,7 @@ class QualityCheckRepository(BaseRepository[QualityCheck]):
         """
         return self.model_class.objects.filter(status="pending")
 
-    def get_failed_checks(self) -> QuerySet:
-        """
-        Get failed quality checks.
-
-        Returns:
-            QuerySet of failed quality checks
-        """
-        return self.model_class.objects.filter(status="failed")
-
-    def get_checks_by_inspector(self, inspector_id: int) -> QuerySet:
+    def get_by_inspector(self, inspector_id: int) -> QuerySet:
         """
         Get quality checks performed by a specific inspector.
 
@@ -116,175 +139,55 @@ class QualityCheckRepository(BaseRepository[QualityCheck]):
         return self.model_class.objects.filter(inspector_id=inspector_id)
 
 
-class QualityIssueRepository(BaseRepository[QualityIssue]):
+class QualityCheckItemRepository(BaseRepository[QualityCheckItem]):
     """
-    Repository for QualityIssue model operations.
-
-    Provides data access operations specific to the QualityIssue model.
+    Repository for QualityCheckItem model operations.
     """
 
     def __init__(self):
         """
-        Initialize the repository with the QualityIssue model.
+        Initialize the repository with the QualityCheckItem model.
         """
-        super().__init__(QualityIssue)
+        super().__init__(QualityCheckItem)
 
-    def get_by_check(self, check_id: int) -> QuerySet:
+    def get_by_quality_check(self, quality_check_id: int) -> QuerySet:
         """
-        Get quality issues for a specific quality check.
+        Get items for a specific quality check.
 
         Args:
-            check_id: The quality check ID
+            quality_check_id: The quality check ID
 
         Returns:
-            QuerySet of quality issues for the specified quality check
+            QuerySet of items for the specified quality check
         """
-        return self.model_class.objects.filter(quality_check_id=check_id)
+        return self.model_class.objects.filter(quality_check_id=quality_check_id)
 
-    def get_by_material(self, material_id: int) -> QuerySet:
+    def get_by_standard(self, standard_id: int) -> QuerySet:
         """
-        Get quality issues for a specific material.
+        Get quality check items for a specific standard.
 
         Args:
-            material_id: The material ID
+            standard_id: The standard ID
 
         Returns:
-            QuerySet of quality issues for the specified material
+            QuerySet of quality check items for the specified standard
         """
-        return self.model_class.objects.filter(quality_check__material_id=material_id)
+        return self.model_class.objects.filter(standard_id=standard_id)
 
-    def get_by_supplier(self, supplier_id: int) -> QuerySet:
+    def get_passed_items(self) -> QuerySet:
         """
-        Get quality issues for a specific supplier.
-
-        Args:
-            supplier_id: The supplier ID
+        Get passed quality check items.
 
         Returns:
-            QuerySet of quality issues for the specified supplier
+            QuerySet of passed quality check items
         """
-        return self.model_class.objects.filter(
-            quality_check__purchase_order__supplier_id=supplier_id
-        )
+        return self.model_class.objects.filter(is_passed=True)
 
-    def get_by_severity(self, severity: str) -> QuerySet:
+    def get_failed_items(self) -> QuerySet:
         """
-        Get quality issues with a specific severity.
-
-        Args:
-            severity: The severity level
+        Get failed quality check items.
 
         Returns:
-            QuerySet of quality issues with the specified severity
+            QuerySet of failed quality check items
         """
-        return self.model_class.objects.filter(severity=severity)
-
-    def get_by_status(self, status: str) -> QuerySet:
-        """
-        Get quality issues with a specific status.
-
-        Args:
-            status: The status
-
-        Returns:
-            QuerySet of quality issues with the specified status
-        """
-        return self.model_class.objects.filter(status=status)
-
-    def get_open_issues(self) -> QuerySet:
-        """
-        Get open quality issues.
-
-        Returns:
-            QuerySet of open quality issues
-        """
-        return self.model_class.objects.filter(status__in=["open", "in_progress"])
-
-    def get_issues_by_parameter(self, parameter_id: int) -> QuerySet:
-        """
-        Get quality issues for a specific quality parameter.
-
-        Args:
-            parameter_id: The quality parameter ID
-
-        Returns:
-            QuerySet of quality issues for the specified parameter
-        """
-        return self.model_class.objects.filter(parameter_id=parameter_id)
-
-    def get_most_common_issues(self, limit: int = 10) -> QuerySet:
-        """
-        Get most common quality issues by parameter.
-
-        Args:
-            limit: Maximum number of issues to return
-
-        Returns:
-            QuerySet of most common quality issues
-        """
-        return (
-            self.model_class.objects.values("parameter", "parameter__name")
-            .annotate(issue_count=Count("id"))
-            .order_by("-issue_count")[:limit]
-        )
-
-
-class QualityParameterRepository(BaseRepository[QualityParameter]):
-    """
-    Repository for QualityParameter model operations.
-
-    Provides data access operations specific to the QualityParameter model.
-    """
-
-    def __init__(self):
-        """
-        Initialize the repository with the QualityParameter model.
-        """
-        super().__init__(QualityParameter)
-
-    def get_by_name(self, name: str) -> Optional[QualityParameter]:
-        """
-        Retrieve a quality parameter by its name.
-
-        Args:
-            name: The parameter name
-
-        Returns:
-            The quality parameter if found, None otherwise
-        """
-        try:
-            return self.model_class.objects.get(name=name)
-        except self.model_class.DoesNotExist:
-            return None
-
-    def get_by_material_type(self, material_type: str) -> QuerySet:
-        """
-        Get quality parameters for a specific material type.
-
-        Args:
-            material_type: The material type
-
-        Returns:
-            QuerySet of quality parameters for the specified material type
-        """
-        return self.model_class.objects.filter(material_type=material_type)
-
-    def get_active_parameters(self) -> QuerySet:
-        """
-        Get active quality parameters.
-
-        Returns:
-            QuerySet of active quality parameters
-        """
-        return self.model_class.objects.filter(is_active=True)
-
-    def get_parameters_with_issues(self) -> QuerySet:
-        """
-        Get quality parameters that have associated issues.
-
-        Returns:
-            QuerySet of quality parameters with issues
-        """
-        return self.model_class.objects.annotate(
-            issue_count=Count("qualityissue")
-        ).filter(issue_count__gt=0)
+        return self.model_class.objects.filter(is_passed=False)

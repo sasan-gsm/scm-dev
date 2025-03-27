@@ -7,6 +7,86 @@ from core.common.repositories import BaseRepository
 from .models import PurchaseOrder, PurchaseOrderItem, Supplier, SupplierContact
 
 
+class SupplierRepository(BaseRepository[Supplier]):
+    """
+    Repository for Supplier model operations.
+    """
+
+    def __init__(self):
+        """
+        Initialize the repository with the Supplier model.
+        """
+        super().__init__(Supplier)
+
+    def get_by_code(self, code: str) -> Optional[Supplier]:
+        """
+        Retrieve a supplier by its code.
+
+        Args:
+            code: The supplier code
+
+        Returns:
+            The supplier if found, None otherwise
+        """
+        try:
+            return self.model_class.objects.get(code=code)
+        except self.model_class.DoesNotExist:
+            return None
+
+    def get_active_suppliers(self) -> QuerySet:
+        """
+        Get active suppliers.
+
+        Returns:
+            QuerySet of active suppliers
+        """
+        return self.model_class.objects.filter(is_active=True)
+
+
+class SupplierContactRepository(BaseRepository[SupplierContact]):
+    """
+    Repository for SupplierContact model operations.
+    """
+
+    def __init__(self):
+        """
+        Initialize the repository with the SupplierContact model.
+        """
+        super().__init__(SupplierContact)
+
+    def get_by_supplier(self, supplier_id: int) -> QuerySet:
+        """
+        Get contacts for a specific supplier.
+
+        Args:
+            supplier_id: The supplier ID
+
+        Returns:
+            QuerySet of contacts for the specified supplier
+        """
+        return self.model_class.objects.filter(supplier_id=supplier_id)
+
+    def get_primary_contact(self, supplier_id: int) -> Optional[SupplierContact]:
+        """
+        Get the primary contact for a supplier.
+
+        Args:
+            supplier_id: The supplier ID
+
+        Returns:
+            The primary contact if found, None otherwise
+        """
+        try:
+            return self.model_class.objects.get(
+                supplier_id=supplier_id, is_primary=True
+            )
+        except (
+            self.model_class.DoesNotExist,
+            self.model_class.MultipleObjectsReturned,
+        ):
+            return None
+
+
 class PurchaseOrderRepository(BaseRepository[PurchaseOrder]):
     """
     Repository for PurchaseOrder model operations.

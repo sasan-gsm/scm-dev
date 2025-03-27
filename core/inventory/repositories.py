@@ -3,23 +3,69 @@ from django.db.models import Q, QuerySet, Sum, F, Value
 from django.db.models.functions import Coalesce
 
 from core.common.repositories import BaseRepository
-from .models import Inventory, InventoryTransaction
+from .models import InventoryItem, InventoryTransaction, Warehouse, InventoryLocation
 
 
-class InventoryRepository(BaseRepository[Inventory]):
+class WarehouseRepository(BaseRepository[Warehouse]):
     """
-    Repository for Inventory model operations.
+    Repository for Warehouse model operations.
 
-    Provides data access operations specific to the Inventory model.
+    Provides data access operations specific to the Warehouse model.
     """
 
     def __init__(self):
         """
-        Initialize the repository with the Inventory model.
+        Initialize the repository with the Warehouse model.
         """
-        super().__init__(Inventory)
+        super().__init__(Warehouse)
 
-    def get_by_material(self, material_id: int) -> Optional[Inventory]:
+    def get_active_warehouses(self) -> QuerySet:
+        """
+        Get active warehouses.
+
+        Returns:
+            QuerySet of active warehouses
+        """
+        return self.model_class.objects.filter(is_active=True)
+
+
+class InventoryLocationRepository(BaseRepository[InventoryLocation]):
+    """
+    Repository for InventoryLocation model operations.
+
+    Provides data access operations specific to the InventoryLocation model.
+    """
+
+    def __init__(self):
+        """
+        Initialize the repository with the InventoryLocation model.
+        """
+        super().__init__(InventoryLocation)
+
+    def get_by_warehouse(self, warehouse_id: int) -> QuerySet:
+        """
+        Get locations in a specific warehouse.
+
+        Returns:
+            QuerySet of locations in the specified warehouse
+        """
+        return self.model_class.objects.filter(warehouse_id=warehouse_id)
+
+
+class InventoryRepository(BaseRepository[InventoryItem]):
+    """
+    Repository for InventoryItem model operations.
+
+    Provides data access operations specific to the InventoryItem model.
+    """
+
+    def __init__(self):
+        """
+        Initialize the repository with the InventoryItem model.
+        """
+        super().__init__(InventoryItem)
+
+    def get_by_material(self, material_id: int) -> Optional[InventoryItem]:
         """
         Retrieve inventory for a specific material.
 
