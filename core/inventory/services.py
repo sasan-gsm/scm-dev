@@ -1,18 +1,182 @@
-from typing import Optional, Dict, Any, List
-from django.db.models import QuerySet, F
+from typing import Optional, Dict, Any, List, Union
+from django.db.models import QuerySet, F, Sum
 from django.utils import timezone
 from django.db import transaction
+from decimal import Decimal
 
 from core.common.services import BaseService
-from .repositories import InventoryRepository, InventoryTransactionRepository
-from .models import Inventory, InventoryTransaction
+from .models import InventoryItem, InventoryTransaction, Warehouse, InventoryLocation
+from .repositories import (
+    InventoryRepository,
+    InventoryTransactionRepository,
+    WarehouseRepository,
+    InventoryLocationRepository,
+)
 
 
-class InventoryService(BaseService[Inventory]):
+class WarehouseService(BaseService):
+    """
+    Service for Warehouse business logic.
+    """
+
+    def __init__(self):
+        """
+        Initialize the service with a WarehouseRepository.
+        """
+        super().__init__(WarehouseRepository())
+
+    def get_all(self) -> QuerySet:
+        """
+        Get all warehouses.
+
+        Returns:
+            QuerySet of Warehouse objects
+        """
+        return self.repository.get_all()
+
+    def get_by_id(self, id: int) -> Optional[Warehouse]:
+        """
+        Get warehouse by ID.
+
+        Args:
+            id: The warehouse ID
+
+        Returns:
+            Warehouse object or None
+        """
+        return self.repository.get_by_id(id)
+
+    def create(self, data: Dict[str, Any]) -> Warehouse:
+        """
+        Create a new warehouse.
+
+        Args:
+            data: Dictionary with warehouse data
+
+        Returns:
+            Created Warehouse object
+        """
+        return self.repository.create(data)
+
+    def update(self, id: int, data: Dict[str, Any]) -> Optional[Warehouse]:
+        """
+        Update an existing warehouse.
+
+        Args:
+            id: The warehouse ID
+            data: Dictionary with updated warehouse data
+
+        Returns:
+            Updated Warehouse object or None
+        """
+        return self.repository.update(id, data)
+
+    def delete(self, id: int) -> bool:
+        """
+        Delete a warehouse.
+
+        Args:
+            id: The warehouse ID
+
+        Returns:
+            True if deleted, False otherwise
+        """
+        # Check if warehouse has inventory items
+        if InventoryItem.objects.filter(warehouse_id=id).exists():
+            raise ValueError("Cannot delete warehouse with inventory items.")
+
+        return self.repository.delete(id)
+
+
+class InventoryLocationService(BaseService):
+    """
+    Service for InventoryLocation business logic.
+    """
+
+    def __init__(self):
+        """
+        Initialize the service with an InventoryLocationRepository.
+        """
+        super().__init__(InventoryLocationRepository())
+
+    def get_all(self) -> QuerySet:
+        """
+        Get all inventory locations.
+
+        Returns:
+            QuerySet of InventoryLocation objects
+        """
+        return self.repository.get_all()
+
+    def get_by_id(self, id: int) -> Optional[InventoryLocation]:
+        """
+        Get inventory location by ID.
+
+        Args:
+            id: The inventory location ID
+
+        Returns:
+            InventoryLocation object or None
+        """
+        return self.repository.get_by_id(id)
+
+    def get_by_warehouse(self, warehouse_id: int) -> QuerySet:
+        """
+        Get locations in a specific warehouse.
+
+        Args:
+            warehouse_id: The warehouse ID
+
+        Returns:
+            QuerySet of InventoryLocation objects
+        """
+        return self.repository.get_by_warehouse(warehouse_id)
+
+    def create(self, data: Dict[str, Any]) -> InventoryLocation:
+        """
+        Create a new inventory location.
+
+        Args:
+            data: Dictionary with inventory location data
+
+        Returns:
+            Created InventoryLocation object
+        """
+        return self.repository.create(data)
+
+    def update(self, id: int, data: Dict[str, Any]) -> Optional[InventoryLocation]:
+        """
+        Update an existing inventory location.
+
+        Args:
+            id: The inventory location ID
+            data: Dictionary with updated inventory location data
+
+        Returns:
+            Updated InventoryLocation object or None
+        """
+        return self.repository.update(id, data)
+
+    def delete(self, id: int) -> bool:
+        """
+        Delete an inventory location.
+
+        Args:
+            id: The inventory location ID
+
+        Returns:
+            True if deleted, False otherwise
+        """
+        # Check if location has inventory items
+        if InventoryItem.objects.filter(location_id=id).exists():
+            raise ValueError("Cannot delete location with inventory items.")
+
+        return self.repository.delete(id)
+
+
+class InventoryService(BaseService):
     """
     Service for Inventory business logic.
-
-    This class provides business logic operations for the Inventory model.
     """
 
     def __init__(self):
@@ -21,46 +185,52 @@ class InventoryService(BaseService[Inventory]):
         """
         super().__init__(InventoryRepository())
 
-    def get_by_material(self, material_id: int) -> Optional[Inventory]:
+    def get_all(self) -> QuerySet:
         """
-        Get inventory for a specific material.
+        Get all inventory items.
+
+        Returns:
+            QuerySet of InventoryItem objects
+        """
+        return self.repository.get_all()
+
+    def get_by_id(self, id: int) -> Optional[InventoryItem]:
+        """
+        Get inventory item by ID.
+
+        Args:
+            id: The inventory item ID
+
+        Returns:
+            InventoryItem object or None
+        """
+        return self.repository.get_by_id(id)
+
+    def get_by_material(self, material_id: int) -> QuerySet:
+        """
+        Get inventory items for a specific material.
 
         Args:
             material_id: The material ID
 
         Returns:
-            The inventory if found, None otherwise
+            QuerySet of InventoryItem objects
         """
         return self.repository.get_by_material(material_id)
 
-    def get_low_inventory(self) -> QuerySet:
+    def get_by_warehouse(self, warehouse_id: int) -> QuerySet:
         """
-        Get inventory items with quantity below minimum level.
+        Get inventory items in a specific warehouse.
+
+        Args:
+            warehouse_id: The warehouse ID
 
         Returns:
-            QuerySet of inventory items with low quantity
+            QuerySet of InventoryItem objects
         """
-        return self.repository.get_low_inventory()
+        return self.repository.get_by_warehouse(warehouse_id)
 
-    def get_low_inventory_with_alerts(self) -> QuerySet:
-        """
-        Get inventory items with quantity below minimum level and alerts enabled.
-
-        Returns:
-            QuerySet of inventory items with low quantity and alerts enabled
-        """
-        return self.repository.get_low_inventory_with_alerts()
-
-    def get_inventory_value(self) -> float:
-        """
-        Calculate the total value of all inventory.
-
-        Returns:
-            Total inventory value
-        """
-        return self.repository.get_inventory_value()
-
-    def get_inventory_by_location(self, location_id: int) -> QuerySet:
+    def get_by_location(self, location_id: int) -> QuerySet:
         """
         Get inventory items in a specific location.
 
@@ -68,333 +238,111 @@ class InventoryService(BaseService[Inventory]):
             location_id: The location ID
 
         Returns:
-            QuerySet of inventory items in the specified location
+            QuerySet of InventoryItem objects
         """
-        return self.repository.get_inventory_by_location(location_id)
+        return self.repository.get_by_location(location_id)
 
-    @transaction.atomic
+    def get_low_inventory(self) -> QuerySet:
+        """
+        Get inventory items with quantity below minimum level.
+
+        Returns:
+            QuerySet of InventoryItem objects
+        """
+        return self.repository.get_low_inventory()
+
+    def create(self, data: Dict[str, Any]) -> InventoryItem:
+        """
+        Create a new inventory item.
+
+        Args:
+            data: Dictionary with inventory item data
+
+        Returns:
+            Created InventoryItem object
+        """
+        return self.repository.create(data)
+
+    def update(self, id: int, data: Dict[str, Any]) -> Optional[InventoryItem]:
+        """
+        Update an existing inventory item.
+
+        Args:
+            id: The inventory item ID
+            data: Dictionary with updated inventory item data
+
+        Returns:
+            Updated InventoryItem object or None
+        """
+        return self.repository.update(id, data)
+
+    def delete(self, id: int) -> bool:
+        """
+        Delete an inventory item.
+
+        Args:
+            id: The inventory item ID
+
+        Returns:
+            True if deleted, False otherwise
+        """
+        return self.repository.delete(id)
+
     def adjust_quantity(
         self,
-        inventory_id: int,
-        quantity_change: float,
+        id: int,
+        quantity_change: Decimal,
         reason: str,
-        reference_type: str = None,
-        reference_id: int = None,
-        project_id: int = None,
-    ) -> Optional[Inventory]:
+        performed_by_id: int,
+        project_id: Optional[int] = None,
+    ) -> Optional[InventoryItem]:
         """
-        Adjust the quantity of an inventory item and record the transaction.
-        This operation is atomic to ensure data consistency.
+        Adjust the quantity of an inventory item and create a transaction.
 
         Args:
-            inventory_id: The inventory ID
-            quantity_change: The quantity change (positive for increase, negative for decrease)
+            id: The inventory item ID
+            quantity_change: The amount to adjust (positive for increase, negative for decrease)
             reason: The reason for the adjustment
-            reference_type: The reference type (e.g., 'purchase_order', 'request')
-            reference_id: The reference ID
-            project_id: Optional project ID to associate with this transaction
+            performed_by_id: The ID of the user performing the adjustment
+            project_id: Optional project ID
 
         Returns:
-            The updated inventory if found, None otherwise
+            Updated InventoryItem object or None
         """
-        # Get the inventory
-        inventory = self.get_by_id(inventory_id)
-        if not inventory:
-            return None
+        with transaction.atomic():
+            inventory_item = self.get_by_id(id)
+            if not inventory_item:
+                return None
 
-        # Calculate new quantity
-        new_quantity = inventory.quantity + quantity_change
+            # Check if we have enough quantity for a decrease
+            if quantity_change < 0 and (inventory_item.quantity + quantity_change) < 0:
+                raise ValueError("Cannot reduce quantity below zero.")
 
-        # Update the inventory
-        updated_inventory = self.update(inventory_id, {"quantity": new_quantity})
+            # Update the inventory item
+            inventory_item.quantity += quantity_change
+            inventory_item.save()
 
-        # Record the transaction
-        transaction_service = InventoryTransactionService()
-        transaction_data = {
-            "inventory": inventory,
-            "material": inventory.material,
-            "quantity": quantity_change,
-            "transaction_type": "adjustment",
-            "reason": reason,
-            "reference_type": reference_type,
-            "reference_id": reference_id,
-            "transaction_date": timezone.now(),
-        }
-
-        # Add project if specified
-        if project_id:
-            transaction_data["project_id"] = project_id
-
-        transaction_service.create(transaction_data)
-
-        # Check if this adjustment puts inventory below threshold and alerts are enabled
-        if (
-            new_quantity < inventory.material.min_inventory_level
-            and inventory.material.alert_enabled
-        ):
-            self._trigger_low_inventory_alert(inventory)
-
-        return updated_inventory
-
-    @transaction.atomic
-    def transfer_inventory(
-        self,
-        inventory_id: int,
-        destination_location_id: int,
-        quantity: float,
-        reason: str,
-        project_id: int = None,
-    ) -> Optional[Inventory]:
-        """
-        Transfer inventory from one location to another.
-        This operation is atomic to ensure data consistency.
-
-        Args:
-            inventory_id: The source inventory ID
-            destination_location_id: The destination location ID
-            quantity: The quantity to transfer
-            reason: The reason for the transfer
-            project_id: Optional project ID to associate with this transfer
-
-        Returns:
-            The updated source inventory if found, None otherwise
-        """
-        # Get the source inventory
-        source_inventory = self.get_by_id(inventory_id)
-        if not source_inventory:
-            return None
-
-        # Ensure sufficient quantity
-        if source_inventory.quantity < quantity:
-            raise ValueError("Insufficient quantity for transfer")
-
-        # Get or create destination inventory
-        destination_inventory = self.repository.filter(
-            material=source_inventory.material, location_id=destination_location_id
-        ).first()
-
-        if not destination_inventory:
-            destination_inventory = self.create(
-                {
-                    "material": source_inventory.material,
-                    "location_id": destination_location_id,
-                    "quantity": 0,
-                }
+            # Create a transaction record
+            transaction_type = "adjustment"
+            InventoryTransaction.objects.create(
+                material=inventory_item.material,
+                transaction_type=transaction_type,
+                quantity=abs(quantity_change),
+                from_warehouse=inventory_item.warehouse
+                if quantity_change < 0
+                else None,
+                to_warehouse=inventory_item.warehouse if quantity_change > 0 else None,
+                project_id=project_id,
+                performed_by_id=performed_by_id,
+                notes=reason,
             )
 
-        # Update source inventory
-        source_inventory = self.adjust_quantity(
-            inventory_id,
-            -quantity,
-            f"Transfer to location {destination_location_id}: {reason}",
-            project_id=project_id,
-        )
-
-        # Update destination inventory
-        self.adjust_quantity(
-            destination_inventory.id,
-            quantity,
-            f"Transfer from location {source_inventory.location_id}: {reason}",
-            project_id=project_id,
-        )
-
-        return source_inventory
-
-    @transaction.atomic
-    def assign_to_project(
-        self,
-        inventory_id: int,
-        project_id: int,
-        quantity: float,
-        reason: str,
-    ) -> Optional[Inventory]:
-        """
-        Assign inventory to a specific project without changing its location.
-        This is useful when materials are allocated to projects but remain in the warehouse.
-
-        Args:
-            inventory_id: The inventory ID
-            project_id: The project ID
-            quantity: The quantity to assign
-            reason: The reason for the assignment
-
-        Returns:
-            The updated inventory if found, None otherwise
-        """
-        # Get the inventory
-        inventory = self.get_by_id(inventory_id)
-        if not inventory:
-            return None
-
-        # Ensure sufficient quantity
-        if inventory.quantity < quantity:
-            raise ValueError("Insufficient quantity for project assignment")
-
-        # Record the transaction without changing inventory location
-        transaction_service = InventoryTransactionService()
-        transaction_service.create(
-            {
-                "inventory": inventory,
-                "material": inventory.material,
-                "quantity": -quantity,  # Negative because it's being allocated
-                "transaction_type": "issue",
-                "reason": f"Assigned to project {project_id}: {reason}",
-                "project_id": project_id,
-                "transaction_date": timezone.now(),
-            }
-        )
-
-        # Update the inventory quantity
-        updated_inventory = self.update(
-            inventory_id, {"quantity": inventory.quantity - quantity}
-        )
-
-        return updated_inventory
-
-    @transaction.atomic
-    def record_warehouse_output(
-        self,
-        inventory_id: int,
-        quantity: float,
-        reason: str,
-        project_id: int = None,
-        is_general_use: bool = False,
-    ) -> Optional[Inventory]:
-        """
-        Record material output from warehouse, optionally assigning to a project.
-
-        Args:
-            inventory_id: The inventory ID
-            quantity: The quantity to output
-            reason: The reason for the output
-            project_id: Optional project ID to associate with this output
-            is_general_use: Whether this output is for general use (not project-specific)
-
-        Returns:
-            The updated inventory if found, None otherwise
-        """
-        # Get the inventory
-        inventory = self.get_by_id(inventory_id)
-        if not inventory:
-            return None
-
-        # Ensure sufficient quantity
-        if inventory.quantity < quantity:
-            raise ValueError("Insufficient quantity for warehouse output")
-
-        # Record the transaction
-        transaction_service = InventoryTransactionService()
-        transaction_data = {
-            "inventory": inventory,
-            "material": inventory.material,
-            "quantity": -quantity,  # Negative because it's leaving inventory
-            "transaction_type": "issue",
-            "reason": reason,
-            "transaction_date": timezone.now(),
-            "is_general_use": is_general_use,
-        }
-
-        # Add project if specified
-        if project_id:
-            transaction_data["project_id"] = project_id
-
-        transaction_service.create(transaction_data)
-
-        # Update the inventory quantity
-        updated_inventory = self.update(
-            inventory_id, {"quantity": inventory.quantity - quantity}
-        )
-
-        # Check if this output puts inventory below threshold and alerts are enabled
-        if (
-            updated_inventory.quantity < inventory.material.min_inventory_level
-            and inventory.material.alert_enabled
-        ):
-            self._trigger_low_inventory_alert(updated_inventory)
-
-        return updated_inventory
-
-    def _trigger_low_inventory_alert(self, inventory: Inventory) -> None:
-        """
-        Trigger an alert for low inventory levels.
-
-        Args:
-            inventory: The inventory item with low quantity
-        """
-        # This is a placeholder for your notification system
-        # You would implement the actual alert mechanism here
-        # For example, sending an email, creating a notification, etc.
-        pass
-
-    def _validate_create(self, data: Dict[str, Any]) -> None:
-        """
-        Validate data before creating an inventory item.
-
-        Args:
-            data: The inventory data
-
-        Raises:
-            ValueError: If the data is invalid
-        """
-        # Ensure required fields are present
-        required_fields = ["material", "location_id", "quantity"]
-        for field in required_fields:
-            if field not in data:
-                raise ValueError(f"Missing required field: {field}")
-
-        # Ensure quantity is not negative
-        if data["quantity"] < 0:
-            raise ValueError("Quantity cannot be negative")
-
-        # Check if inventory already exists for this material and location
-        existing = self.repository.filter(
-            material=data["material"], location_id=data["location_id"]
-        ).first()
-
-        if existing:
-            raise ValueError(
-                f"Inventory already exists for material {data['material'].id} at location {data['location_id']}"
-            )
-
-    def _validate_update(self, entity: Inventory, data: Dict[str, Any]) -> None:
-        """
-        Validate data before updating an inventory item.
-
-        Args:
-            entity: The inventory to update
-            data: The updated data
-
-        Raises:
-            ValueError: If the data is invalid
-        """
-        # Ensure quantity is not negative
-        if "quantity" in data and data["quantity"] < 0:
-            raise ValueError("Quantity cannot be negative")
-
-        # If changing material or location, ensure no duplicate
-        if ("material" in data and data["material"] != entity.material) or (
-            "location_id" in data and data["location_id"] != entity.location_id
-        ):
-            material = data.get("material", entity.material)
-            location_id = data.get("location_id", entity.location_id)
-
-            existing = (
-                self.repository.filter(material=material, location_id=location_id)
-                .exclude(id=entity.id)
-                .first()
-            )
-
-            if existing:
-                raise ValueError(
-                    f"Inventory already exists for material {material.id} at location {location_id}"
-                )
+            return inventory_item
 
 
-class InventoryTransactionService(BaseService[InventoryTransaction]):
+class InventoryTransactionService(BaseService):
     """
     Service for InventoryTransaction business logic.
-
-    This class provides business logic operations for the InventoryTransaction model.
     """
 
     def __init__(self):
@@ -403,98 +351,148 @@ class InventoryTransactionService(BaseService[InventoryTransaction]):
         """
         super().__init__(InventoryTransactionRepository())
 
-    def get_by_reference(self, reference_type: str, reference_id: int) -> QuerySet:
+    def get_all(self) -> QuerySet:
         """
-        Get transactions by reference type and ID.
-
-        Args:
-            reference_type: The reference type (e.g., 'purchase_order', 'request')
-            reference_id: The reference ID
+        Get all inventory transactions.
 
         Returns:
-            QuerySet of transactions with the specified reference
+            QuerySet of InventoryTransaction objects
         """
-        return self.repository.get_by_reference(reference_type, reference_id)
+        return self.repository.get_all()
+
+    def get_by_id(self, id: int) -> Optional[InventoryTransaction]:
+        """
+        Get inventory transaction by ID.
+
+        Args:
+            id: The inventory transaction ID
+
+        Returns:
+            InventoryTransaction object or None
+        """
+        return self.repository.get_by_id(id)
 
     def get_material_transactions(self, material_id: int) -> QuerySet:
         """
-        Get all transactions for a specific material.
+        Get transactions for a specific material.
 
         Args:
             material_id: The material ID
 
         Returns:
-            QuerySet of transactions for the specified material
+            QuerySet of InventoryTransaction objects
         """
-        return self.repository.get_material_transactions(material_id)
+        return self.repository.get_by_material(material_id)
 
     def get_project_transactions(self, project_id: int) -> QuerySet:
         """
-        Get all transactions for a specific project.
+        Get transactions for a specific project.
 
         Args:
             project_id: The project ID
 
         Returns:
-            QuerySet of transactions for the specified project
+            QuerySet of InventoryTransaction objects
         """
-        return self.repository.get_project_transactions(project_id)
+        return self.repository.get_by_project(project_id)
 
-    def get_transactions_by_date_range(self, start_date, end_date) -> QuerySet:
+    @transaction.atomic
+    def create(self, data: Dict[str, Any]) -> InventoryTransaction:
         """
-        Get transactions within a date range.
+        Create a new inventory transaction and update inventory levels.
 
         Args:
-            start_date: The start date
-            end_date: The end date
+            data: Dictionary with transaction data
 
         Returns:
-            QuerySet of transactions within the specified date range
+            Created InventoryTransaction object
         """
-        return self.repository.get_transactions_by_date_range(start_date, end_date)
+        transaction_type = data.get("transaction_type")
+        material_id = data.get("material_id")
+        quantity = data.get("quantity")
+        from_warehouse_id = data.get("from_warehouse_id")
+        to_warehouse_id = data.get("to_warehouse_id")
 
-    def get_material_project_usage(self, material_id: int, project_id: int) -> float:
+        # Create the transaction
+        inventory_transaction = self.repository.create(data)
+
+        # Update inventory levels based on transaction type
+        if transaction_type == "receipt":
+            # Find or create inventory item in the destination warehouse
+            inventory_item, created = InventoryItem.objects.get_or_create(
+                material_id=material_id,
+                warehouse_id=to_warehouse_id,
+                defaults={"quantity": 0},
+            )
+            inventory_item.quantity += quantity
+            inventory_item.save()
+
+        elif transaction_type == "issue":
+            # Find inventory item in the source warehouse
+            try:
+                inventory_item = InventoryItem.objects.get(
+                    material_id=material_id, warehouse_id=from_warehouse_id
+                )
+
+                # Check if we have enough quantity
+                if inventory_item.quantity < quantity:
+                    raise ValueError(
+                        f"Not enough quantity in warehouse. Available: {inventory_item.quantity}"
+                    )
+
+                inventory_item.quantity -= quantity
+                inventory_item.save()
+
+            except InventoryItem.DoesNotExist:
+                raise ValueError("Material not found in the source warehouse.")
+
+        elif transaction_type == "transfer":
+            # Find inventory item in the source warehouse
+            try:
+                source_item = InventoryItem.objects.get(
+                    material_id=material_id, warehouse_id=from_warehouse_id
+                )
+
+                # Check if we have enough quantity
+                if source_item.quantity < quantity:
+                    raise ValueError(
+                        f"Not enough quantity in source warehouse. Available: {source_item.quantity}"
+                    )
+
+                # Reduce quantity in source warehouse
+                source_item.quantity -= quantity
+                source_item.save()
+
+                # Find or create inventory item in the destination warehouse
+                dest_item, created = InventoryItem.objects.get_or_create(
+                    material_id=material_id,
+                    warehouse_id=to_warehouse_id,
+                    defaults={"quantity": 0},
+                )
+
+                # Increase quantity in destination warehouse
+                dest_item.quantity += quantity
+                dest_item.save()
+
+            except InventoryItem.DoesNotExist:
+                dest_item.quantity += quantity
+                dest_item.save()
+
+            except InventoryItem.DoesNotExist:
+                raise ValueError("Material not found in the source warehouse.")
+
+        return inventory_transaction
+
+    def delete(self, id: int) -> bool:
         """
-        Get the total usage of a material in a specific project.
+        Delete an inventory transaction.
 
         Args:
-            material_id: The material ID
-            project_id: The project ID
+            id: The inventory transaction ID
 
         Returns:
-            Total quantity of the material used in the project
+            True if deleted, False otherwise
         """
-        transactions = self.repository.get_material_project_transactions(
-            material_id, project_id
-        )
-        total_usage = sum(t.quantity for t in transactions if t.quantity < 0)
-        return abs(total_usage)
-
-    def get_general_use_transactions(self) -> QuerySet:
-        """
-        Get all transactions marked as general use (not project-specific).
-
-        Returns:
-            QuerySet of general use transactions
-        """
-        return self.repository.get_general_use_transactions()
-
-    def _validate_create(self, data: Dict[str, Any]) -> None:
-        """
-        Validate data before creating a transaction.
-
-        Args:
-            data: The transaction data
-
-        Raises:
-            ValueError: If the data is invalid
-        """
-        # Ensure required fields are present
-        required_fields = ["inventory", "material", "quantity", "transaction_type"]
-        for field in required_fields:
-            if field not in data:
-                raise ValueError(f"Missing required field: {field}")
-
-        # Ensure transaction date is not in the future
-        if "transaction_date" in data and data["transaction_date"] > timezone.now():
-            raise ValueError("Transaction date cannot be in the future")
+        # Note: In a real application, you might want to reverse the inventory
+        # changes caused by this transaction before deleting it
+        return self.repository.delete(id)

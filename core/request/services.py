@@ -1,12 +1,11 @@
-from typing import Optional, Dict, Any, List
-from django.db.models import QuerySet, F
-from django.utils import timezone
+from typing import Optional, List, Dict, Any
+from django.db.models import QuerySet
 from django.db import transaction
-
+from django.utils import timezone
 from core.common.services import BaseService
+from core.inventory.services import InventoryService
 from .repositories import RequestRepository, RequestItemRepository
 from .models import Request, RequestItem
-from core.inventory.services import InventoryService
 
 
 class RequestService(BaseService[Request]):
@@ -89,6 +88,15 @@ class RequestService(BaseService[Request]):
         """
         return self.repository.get_requests_by_date_range(start_date, end_date)
 
+    def get_all_with_item_count(self) -> QuerySet:
+        """
+        Get all requests with item count annotation.
+
+        Returns:
+            QuerySet of all requests with item_count annotation
+        """
+        return self.repository.get_requests_with_item_count()
+
     def approve_request(self, request_id: int, approver_id: int) -> Optional[Request]:
         """
         Approve a request.
@@ -113,23 +121,15 @@ class RequestService(BaseService[Request]):
 
         # Update the request
         return self.update(
-            request_id,
-            {
-                "status": "approved",
-                "approver_id": approver_id,
-                "approval_date": timezone.now(),
-            },
+            request_id, {"status": "approved", "approver_id": approver_id}
         )
 
-    def reject_request(
-        self, request_id: int, approver_id: int, reason: str
-    ) -> Optional[Request]:
+    def reject_request(self, request_id: int, reason: str = None) -> Optional[Request]:
         """
         Reject a request.
 
         Args:
             request_id: The request ID
-            approver_id: The approver ID
             reason: The rejection reason
 
         Returns:
@@ -147,15 +147,33 @@ class RequestService(BaseService[Request]):
             )
 
         # Update the request
-        return self.update(
-            request_id,
-            {
-                "status": "rejected",
-                "approver_id": approver_id,
-                "approval_date": timezone.now(),
-                "rejection_reason": reason,
-            },
-        )
+        data = {"status": "rejected"}
+        if reason:
+            data["notes"] = (request.notes + "\n\nRejection reason: " + reason).strip()
+
+        return self.update(request_id, data)
+
+    def cancel_request(self, request_id: int) -> Optional[Request]:
+        """
+        Cancel a request.
+
+        Args:
+            request_id: The request ID
+
+        Returns:
+            The cancelled request if found, None otherwise
+        """
+        # Get the request
+        request = self.get_by_id(request_id)
+        if not request:
+            return None
+
+        # Ensure request can be cancelled
+        if request.status in ["completed", "cancelled", "rejected"]:
+            raise ValueError(f"Cannot cancel request with status: {request.status}")
+
+        # Update the request
+        return self.update(request_id, {"status": "cancelled"})
 
     def fulfill_request(self, request_id: int) -> Optional[Request]:
         """
@@ -221,51 +239,14 @@ class RequestService(BaseService[Request]):
                         "quantity_fulfilled": item.quantity,
                         "is_fulfilled": True,
                         "fulfillment_date": timezone.now(),
+                        "status": "fulfilled",
                     },
                 )
 
             # Update request status
             return self.update(
-                request_id, {"status": "fulfilled", "fulfillment_date": timezone.now()}
+                request_id, {"status": "completed", "fulfillment_date": timezone.now()}
             )
-
-    def _validate_create(self, data: Dict[str, Any]) -> None:
-        """
-        Validate data before creating a request.
-
-        Args:
-            data: The request data
-
-        Raises:
-            ValueError: If the data is invalid
-        """
-        # Ensure required fields are present
-        required_fields = ["requester", "project", "purpose"]
-        for field in required_fields:
-            if field not in data:
-                raise ValueError(f"Missing required field: {field}")
-
-        # Generate request number if not provided
-        if "number" not in data:
-            # Generate a unique request number (e.g., REQ-YYYYMMDD-XXXX)
-            today = timezone.now().strftime("%Y%m%d")
-            last_request = (
-                self.model_class.objects.filter(number__startswith=f"REQ-{today}")
-                .order_by("-number")
-                .first()
-            )
-
-            if last_request:
-                last_number = int(last_request.number.split("-")[-1])
-                new_number = f"REQ-{today}-{last_number + 1:04d}"
-            else:
-                new_number = f"REQ-{today}-0001"
-
-            data["number"] = new_number
-
-        # Set initial status if not provided
-        if "status" not in data:
-            data["status"] = "draft"
 
 
 class RequestItemService(BaseService[RequestItem]):
@@ -305,26 +286,23 @@ class RequestItemService(BaseService[RequestItem]):
         """
         return self.repository.get_by_material(material_id)
 
-    def get_pending_fulfillment_items(self) -> QuerySet:
+    def get_pending_items(self) -> QuerySet:
         """
-        Get items that have been approved but not fully fulfilled.
+        Get pending request items.
 
         Returns:
-            QuerySet of items pending fulfillment
+            QuerySet of pending request items
         """
-        return self.repository.get_pending_fulfillment_items()
+        return self.repository.get_pending_items()
 
-    def get_most_requested_materials(self, limit: int = 10) -> QuerySet:
+    def get_fulfilled_items(self) -> QuerySet:
         """
-        Get most frequently requested materials.
-
-        Args:
-            limit: Maximum number of materials to return
+        Get fulfilled request items.
 
         Returns:
-            QuerySet of most requested materials
+            QuerySet of fulfilled request items
         """
-        return self.repository.get_most_requested_materials(limit)
+        return self.repository.get_fulfilled_items()
 
     def partially_fulfill_item(
         self, item_id: int, quantity: float
@@ -344,12 +322,6 @@ class RequestItemService(BaseService[RequestItem]):
         if not item:
             return None
 
-        # Ensure request is approved
-        if item.request.status != "approved":
-            raise ValueError(
-                f"Request is not approved (current status: {item.request.status})"
-            )
-
         # Ensure item is not already fulfilled
         if item.is_fulfilled:
             raise ValueError("Item is already fulfilled")
@@ -358,68 +330,20 @@ class RequestItemService(BaseService[RequestItem]):
         if quantity <= 0:
             raise ValueError("Quantity must be positive")
 
-        remaining_quantity = item.quantity - item.quantity_fulfilled
-        if quantity > remaining_quantity:
-            raise ValueError(
-                f"Quantity exceeds remaining quantity ({remaining_quantity})"
-            )
+        if quantity > (item.quantity - item.quantity_fulfilled):
+            raise ValueError("Quantity exceeds remaining quantity")
 
-        # Get inventory for this material
-        inventory_service = InventoryService()
-        inventory = inventory_service.get_by_material(item.material_id)
-        if not inventory:
-            raise ValueError(f"No inventory found for material {item.material_id}")
+        # Update the item
+        new_quantity_fulfilled = item.quantity_fulfilled + quantity
+        is_fulfilled = new_quantity_fulfilled >= item.quantity
+        status = "fulfilled" if is_fulfilled else "partially_fulfilled"
 
-        # Ensure sufficient quantity
-        if inventory.quantity < quantity:
-            raise ValueError(f"Insufficient inventory for material {item.material_id}")
-
-        # Update inventory
-        with transaction.atomic():
-            inventory_service.adjust_quantity(
-                inventory.id,
-                -quantity,
-                f"Partial fulfillment of request {item.request.number}",
-                "request",
-                item.request_id,
-            )
-
-            # Update request item
-            new_fulfilled_quantity = item.quantity_fulfilled + quantity
-            is_fully_fulfilled = new_fulfilled_quantity >= item.quantity
-
-            return self.update(
-                item_id,
-                {
-                    "quantity_fulfilled": new_fulfilled_quantity,
-                    "is_fulfilled": is_fully_fulfilled,
-                    "fulfillment_date": timezone.now() if is_fully_fulfilled else None,
-                },
-            )
-
-    def _validate_create(self, data: Dict[str, Any]) -> None:
-        """
-        Validate data before creating a request item.
-
-        Args:
-            data: The request item data
-
-        Raises:
-            ValueError: If the data is invalid
-        """
-        # Ensure required fields are present
-        required_fields = ["request", "material", "quantity"]
-        for field in required_fields:
-            if field not in data:
-                raise ValueError(f"Missing required field: {field}")
-
-        # Ensure quantity is positive
-        if data["quantity"] <= 0:
-            raise ValueError("Quantity must be positive")
-
-        # Initialize fulfillment fields if not provided
-        if "quantity_fulfilled" not in data:
-            data["quantity_fulfilled"] = 0
-
-        if "is_fulfilled" not in data:
-            data["is_fulfilled"] = False
+        return self.update(
+            item_id,
+            {
+                "quantity_fulfilled": new_quantity_fulfilled,
+                "is_fulfilled": is_fulfilled,
+                "status": status,
+                "fulfillment_date": timezone.now() if is_fulfilled else None,
+            },
+        )

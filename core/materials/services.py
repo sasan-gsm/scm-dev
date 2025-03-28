@@ -1,10 +1,11 @@
-from typing import Optional, Dict, Any, List
+from typing import Optional, List, Dict, Any, Union
 from django.db.models import QuerySet
 from django.utils import timezone
+from decimal import Decimal
 
 from core.common.services import BaseService
-from .repositories import MaterialRepository, CategoryRepository
-from .models import Material, Category
+from .repositories import MaterialRepository, MaterialCategoryRepository
+from .models import Material, MaterialCategory, MaterialPriceHistory
 
 
 class MaterialService(BaseService[Material]):
@@ -66,7 +67,12 @@ class MaterialService(BaseService[Material]):
         return self.repository.get_low_inventory_materials()
 
     def update_price(
-        self, material_id: int, price: float, effective_date=None
+        self,
+        material_id: int,
+        price: Decimal,
+        effective_date=None,
+        user_id: int = None,
+        notes: str = "",
     ) -> Optional[Material]:
         """
         Update the price of a material and record the price history.
@@ -75,6 +81,8 @@ class MaterialService(BaseService[Material]):
             material_id: The material ID
             price: The new price
             effective_date: The effective date of the price change
+            user_id: The ID of the user making the change
+            notes: Optional notes about the price change
 
         Returns:
             The updated material if found, None otherwise
@@ -84,81 +92,40 @@ class MaterialService(BaseService[Material]):
         if not material:
             return None
 
-        # Set effective date to now if not provided
+        # Set effective date to today if not provided
         if not effective_date:
             effective_date = timezone.now().date()
 
-        # Update the material price
-        updated_material = self.update(material_id, {"price": price})
+        # Update the material's current price
+        material.unit_price = price
+        material.save()
 
-        # Record the price history
-        from core.accounting.models import PriceHistory
-
-        PriceHistory.objects.create(
-            material=material, price=price, effective_date=effective_date
+        # Create price history record
+        MaterialPriceHistory.objects.create(
+            material=material,
+            price=price,
+            effective_date=effective_date,
+            recorded_by_id=user_id,
+            notes=notes,
         )
 
-        return updated_material
-
-    def _validate_create(self, data: Dict[str, Any]) -> None:
-        """
-        Validate data before creating a material.
-
-        Args:
-            data: The material data
-
-        Raises:
-            ValueError: If the data is invalid
-        """
-        # Ensure required fields are present
-        required_fields = ["name", "code", "category"]
-        for field in required_fields:
-            if field not in data:
-                raise ValueError(f"Missing required field: {field}")
-
-        # Ensure code is unique
-        if self.repository.get_by_code(data["code"]):
-            raise ValueError(f"Material with code {data['code']} already exists")
-
-        # Ensure min_inventory_level is not negative
-        if "min_inventory_level" in data and data["min_inventory_level"] < 0:
-            raise ValueError("Minimum inventory level cannot be negative")
-
-    def _validate_update(self, entity: Material, data: Dict[str, Any]) -> None:
-        """
-        Validate data before updating a material.
-
-        Args:
-            entity: The material to update
-            data: The updated data
-
-        Raises:
-            ValueError: If the data is invalid
-        """
-        # Ensure code is unique if changed
-        if "code" in data and data["code"] != entity.code:
-            if self.repository.get_by_code(data["code"]):
-                raise ValueError(f"Material with code {data['code']} already exists")
-
-        # Ensure min_inventory_level is not negative
-        if "min_inventory_level" in data and data["min_inventory_level"] < 0:
-            raise ValueError("Minimum inventory level cannot be negative")
+        return material
 
 
-class CategoryService(BaseService[Category]):
+class MaterialCategoryService(BaseService[MaterialCategory]):
     """
-    Service for Category business logic.
+    Service for MaterialCategory business logic.
 
-    This class provides business logic operations for the Category model.
+    This class provides business logic operations for the MaterialCategory model.
     """
 
     def __init__(self):
         """
-        Initialize the service with a CategoryRepository.
+        Initialize the service with a MaterialCategoryRepository.
         """
-        super().__init__(CategoryRepository())
+        super().__init__(MaterialCategoryRepository())
 
-    def get_by_name(self, name: str) -> Optional[Category]:
+    def get_by_name(self, name: str) -> Optional[MaterialCategory]:
         """
         Get a category by its name.
 
@@ -179,20 +146,23 @@ class CategoryService(BaseService[Category]):
         """
         return self.repository.get_with_material_count()
 
-    def _validate_create(self, data: Dict[str, Any]) -> None:
+    def get_root_categories(self) -> QuerySet:
         """
-        Validate data before creating a category.
+        Get root categories (categories without parents).
+
+        Returns:
+            QuerySet of root categories
+        """
+        return self.repository.get_root_categories()
+
+    def get_subcategories(self, parent_id: int) -> QuerySet:
+        """
+        Get subcategories of a specific category.
 
         Args:
-            data: The category data
+            parent_id: The parent category ID
 
-        Raises:
-            ValueError: If the data is invalid
+        Returns:
+            QuerySet of subcategories
         """
-        # Ensure required fields are present
-        if "name" not in data:
-            raise ValueError("Missing required field: name")
-
-        # Ensure name is unique
-        if self.repository.get_by_name(data["name"]):
-            raise ValueError(f"Category with name {data['name']} already exists")
+        return self.repository.get_subcategories(parent_id)

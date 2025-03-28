@@ -15,6 +15,98 @@ from .models import PurchaseOrder, PurchaseOrderItem, Supplier, SupplierContact
 from core.inventory.services import InventoryService
 
 
+class SupplierService(BaseService[Supplier]):
+    """
+    Service for Supplier business logic.
+    """
+
+    def __init__(self):
+        """
+        Initialize the service with a SupplierRepository.
+        """
+        super().__init__(SupplierRepository())
+
+    def get_by_code(self, code: str) -> Optional[Supplier]:
+        """
+        Get a supplier by its code.
+
+        Args:
+            code: The supplier code
+
+        Returns:
+            The supplier if found, None otherwise
+        """
+        return self.repository.get_by_code(code)
+
+    def get_active_suppliers(self) -> QuerySet:
+        """
+        Get active suppliers.
+
+        Returns:
+            QuerySet of active suppliers
+        """
+        return self.repository.get_active_suppliers()
+
+
+class SupplierContactService(BaseService[SupplierContact]):
+    """
+    Service for SupplierContact business logic.
+    """
+
+    def __init__(self):
+        """
+        Initialize the service with a SupplierContactRepository.
+        """
+        super().__init__(SupplierContactRepository())
+
+    def get_by_supplier(self, supplier_id: int) -> QuerySet:
+        """
+        Get contacts for a specific supplier.
+
+        Args:
+            supplier_id: The supplier ID
+
+        Returns:
+            QuerySet of contacts for the specified supplier
+        """
+        return self.repository.get_by_supplier(supplier_id)
+
+    def get_primary_contact(self, supplier_id: int) -> Optional[SupplierContact]:
+        """
+        Get the primary contact for a supplier.
+
+        Args:
+            supplier_id: The supplier ID
+
+        Returns:
+            The primary contact if found, None otherwise
+        """
+        return self.repository.get_primary_contact(supplier_id)
+
+    def set_as_primary(self, contact_id: int) -> Optional[SupplierContact]:
+        """
+        Set a contact as the primary contact for its supplier.
+
+        Args:
+            contact_id: The contact ID
+
+        Returns:
+            The updated contact if found, None otherwise
+        """
+        contact = self.get_by_id(contact_id)
+        if not contact:
+            return None
+
+        with transaction.atomic():
+            # Clear primary flag for all contacts of this supplier
+            self.repository.model_class.objects.filter(
+                supplier_id=contact.supplier_id, is_primary=True
+            ).update(is_primary=False)
+
+            # Set this contact as primary
+            return self.update(contact_id, {"is_primary": True})
+
+
 class PurchaseOrderService(BaseService[PurchaseOrder]):
     """
     Service for PurchaseOrder business logic.
