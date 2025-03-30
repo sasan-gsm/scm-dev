@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
+from core.accounts.models import Department, Permission
 
 User = get_user_model()
 
@@ -22,6 +22,10 @@ class UserSerializer(serializers.ModelSerializer):
             "is_active",
             "date_joined",
             "last_login",
+            "custom_permissions",
+            "department",
+            "position",
+            "is_manager",
         ]
         read_only_fields = ["id", "date_joined", "last_login"]
 
@@ -46,6 +50,10 @@ class UserCreateSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "is_active",
+            "custom_permissions",
+            "department",
+            "position",
+            "is_manager",
         ]
 
     def validate(self, attrs):
@@ -62,8 +70,18 @@ class UserCreateSerializer(serializers.ModelSerializer):
         """
         Create and return a new user.
         """
+        # Remove password2 from validated data
         validated_data.pop("password2")
+        # Extract custom_permissions if present
+        custom_permissions = validated_data.pop("custom_permissions", [])
+
+        # Create user instance with create_user to properly hash password
         user = User.objects.create_user(**validated_data)
+
+        # Set custom permissions
+        if custom_permissions:
+            user.custom_permissions.set(custom_permissions)
+
         return user
 
 
@@ -74,7 +92,16 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["email", "first_name", "last_name", "is_active"]
+        fields = [
+            "email",
+            "first_name",
+            "last_name",
+            "is_active",
+            "department",
+            "position",
+            "is_manager",
+            "custom_permissions",
+        ]
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -136,5 +163,28 @@ class ProfileSerializer(serializers.ModelSerializer):
             "last_name",
             "date_joined",
             "last_login",
+            "department",
+            "position",
+            "is_manager",
         ]
         read_only_fields = ["id", "username", "date_joined", "last_login"]
+
+
+class DepartmentSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Department model.
+    """
+
+    class Meta:
+        model = Department
+        fields = ["id", "name", "code", "manager", "parent"]
+
+
+class PermissionSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Permission model.
+    """
+
+    class Meta:
+        model = Permission
+        fields = ["id", "name", "codename", "description", "is_basic", "department"]

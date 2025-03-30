@@ -13,7 +13,10 @@ from .serializers import (
     ChangePasswordSerializer,
     LoginSerializer,
     ProfileSerializer,
+    DepartmentSerializer,
+    PermissionSerializer,
 )
+from core.accounts.models import Department, Permission
 
 User = get_user_model()
 
@@ -92,6 +95,25 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({"status": "password changed"})
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(
+        detail=True,
+        methods=["get", "post"],
+        permission_classes=[permissions.IsAdminUser],
+    )
+    def permissions(self, request, pk=None):
+        """Get or update user permissions."""
+        user = self.get_object()
+
+        if request.method == "GET":
+            permissions = user.custom_permissions.all()
+            serializer = PermissionSerializer(permissions, many=True)
+            return Response(serializer.data)
+
+        elif request.method == "POST":
+            permission_ids = request.data.get("permissions", [])
+            user.custom_permissions.set(permission_ids)
+            return Response({"status": "permissions updated"})
 
 
 class LoginView(APIView):
@@ -173,3 +195,36 @@ class ProfileView(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DepartmentViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for departments.
+    """
+
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSerializer
+    permission_classes = [permissions.IsAdminUser]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["name", "code"]
+    ordering_fields = ["name", "code"]
+    ordering = ["name"]
+
+
+class PermissionViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for permissions.
+    """
+
+    queryset = Permission.objects.all()
+    serializer_class = PermissionSerializer
+    permission_classes = [permissions.IsAdminUser]
+    filter_backends = [
+        filters.SearchFilter,
+        filters.OrderingFilter,
+        DjangoFilterBackend,
+    ]
+    search_fields = ["name", "codename", "description"]
+    filterset_fields = ["department", "is_basic"]
+    ordering_fields = ["name", "codename"]
+    ordering = ["name"]

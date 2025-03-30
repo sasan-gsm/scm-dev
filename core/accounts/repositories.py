@@ -1,7 +1,6 @@
-from typing import Optional, List
+from typing import Optional
 from django.db.models import Q, QuerySet
 from django.contrib.auth import get_user_model
-
 from core.common.repositories import BaseRepository
 from .models import UserProfile, Role, Permission
 

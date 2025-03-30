@@ -21,10 +21,13 @@ class User(AbstractUser, TimeStampedModel):
     )
     position = models.CharField(max_length=100, blank=True)
     is_manager = models.BooleanField(default=False)
-
-    class Meta:
-        verbose_name = _("user")
-        verbose_name_plural = _("users")
+    custom_permissions = models.ManyToManyField(
+        "Permission",
+        verbose_name=_("custom permissions"),
+        blank=True,
+        help_text=_("Custom permissions for this user."),
+        related_name="users_with_permission",
+    )
 
     def __str__(self):
         return self.get_full_name() or self.username
