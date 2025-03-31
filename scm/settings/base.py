@@ -11,6 +11,31 @@ local_env_file = path.join(BASE_DIR, ".envs", ".env.local")
 if path.isfile(local_env_file):
     load_dotenv(local_env_file)
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",  # Django development server
+    "http://127.0.0.1:8000",
+]
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
 # Application definition
 
 DJANGO_APPS = [
@@ -25,7 +50,6 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
-    # "debug_toolbar",
     "rest_framework",
     "django_countries",
     "phonenumber_field",
@@ -71,7 +95,6 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
-    # "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
 
 AUTHENTICATION_BACKENDS = (
@@ -100,16 +123,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "scm.wsgi.application"
-
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
 
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
@@ -193,6 +206,28 @@ REST_FRAMEWORK = {
     },
 }
 
+# Swagger settings
+SWAGGER_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "Bearer": {"type": "apiKey", "name": "Authorization", "in": "header"}
+    },
+    "USE_SESSION_AUTH": False,
+    "JSON_EDITOR": True,
+    "PERSIST_AUTH": True,
+    "REFETCH_SCHEMA_WITH_AUTH": True,
+    "REFETCH_SCHEMA_ON_LOGOUT": True,
+    "DEFAULT_MODEL_RENDERING": "model",
+    "DEFAULT_INFO": "scm.urls.schema_view",
+    "DOC_EXPANSION": "none",
+}
+
+# Redoc settings
+REDOC_SETTINGS = {
+    "LAZY_RENDERING": True,
+    "HIDE_HOSTNAME": False,
+    "EXPAND_RESPONSES": "all",
+    "PATH_IN_MIDDLE": False,
+}
 # Simple JWT settings
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(

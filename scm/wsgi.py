@@ -11,6 +11,8 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scm.settings.local")
+# Get environment from DJANGO_ENVIRONMENT or default to development
+environment = os.environ.get("DJANGO_ENVIRONMENT", "development")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", f"scm.settings.{environment}")
 
 application = get_wsgi_application()

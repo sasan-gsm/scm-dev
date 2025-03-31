@@ -8,10 +8,6 @@ class TimeStampedModel(models.Model):
     created and modified fields.
     """
 
-<<<<<<< Updated upstream
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created at"))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated at"))
-=======
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name=_("Created at"),
@@ -22,7 +18,6 @@ class TimeStampedModel(models.Model):
         verbose_name=_("Updated at"),
         help_text=_("Date and time when the record was last updated"),
     )
->>>>>>> Stashed changes
 
     class Meta:
         abstract = True

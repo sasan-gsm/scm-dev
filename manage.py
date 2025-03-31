@@ -3,12 +3,14 @@
 
 import os
 import sys
-# from django.core.management import execute_from_command_line
 
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scm.settings.local")
+    # Get environment from DJANGO_ENVIRONMENT or default to development
+    environment = os.environ.get("DJANGO_ENVIRONMENT", "development")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", f"scm.settings.{environment}")
+
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
@@ -22,9 +24,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    # # If you want to add a specific command for WebView
-    # if len(sys.argv) > 1 and sys.argv[1] == "webview":
-    #     sys.argv = ["manage.py", "runserver", "0.0.0.0:8000"]
-
-    # execute_from_command_line(sys.argv)
