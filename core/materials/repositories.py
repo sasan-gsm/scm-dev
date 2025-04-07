@@ -2,7 +2,7 @@ from typing import Optional, List
 from django.db.models import Q, QuerySet, Count, F
 
 from core.common.repositories import BaseRepository
-from .models import Material, MaterialCategory
+from .models import Material, MaterialCategory, MaterialPriceHistory
 
 
 class MaterialRepository(BaseRepository[Material]):
@@ -140,3 +140,64 @@ class MaterialCategoryRepository(BaseRepository[MaterialCategory]):
             QuerySet of subcategories
         """
         return self.model_class.objects.filter(parent_id=parent_id)
+
+
+class MaterialPriceHistoryRepository(BaseRepository[MaterialPriceHistory]):
+    """
+    Repository for MaterialPriceHistory model operations.
+
+    Provides data access operations specific to the MaterialPriceHistory model.
+    """
+
+    def __init__(self):
+        """
+        Initialize the repository with the MaterialPriceHistory model.
+        """
+        super().__init__(MaterialPriceHistory)
+
+    def get_by_material(self, material_id: int) -> QuerySet:
+        """
+        Get price history for a specific material.
+
+        Args:
+            material_id: The material ID
+
+        Returns:
+            QuerySet of price history records for the specified material
+        """
+        return self.model_class.objects.filter(material_id=material_id)
+
+    def get_latest_price(self, material_id: int) -> Optional[MaterialPriceHistory]:
+        """
+        Get the latest price for a specific material.
+
+        Args:
+            material_id: The material ID
+
+        Returns:
+            The latest price history record for the specified material, or None if not found
+        """
+        try:
+            return self.model_class.objects.filter(material_id=material_id).latest(
+                "effective_date"
+            )
+        except self.model_class.DoesNotExist:
+            return None
+
+    def get_by_date_range(self, material_id: int, start_date, end_date) -> QuerySet:
+        """
+        Get price history for a specific material within a date range.
+
+        Args:
+            material_id: The material ID
+            start_date: The start date
+            end_date: The end date
+
+        Returns:
+            QuerySet of price history records within the specified date range
+        """
+        return self.model_class.objects.filter(
+            material_id=material_id,
+            effective_date__gte=start_date,
+            effective_date__lte=end_date,
+        )

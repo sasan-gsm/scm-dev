@@ -38,6 +38,9 @@ class Material(TimeStampedModel):
         verbose_name=_("Category"),
     )
     unit_of_measure = models.CharField(max_length=50, verbose_name=_("Unit of Measure"))
+    unit_price = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, verbose_name=_("Unit Price")
+    )
     technical_specs = models.JSONField(
         default=dict, verbose_name=_("Technical Specifications")
     )

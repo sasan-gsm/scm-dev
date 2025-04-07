@@ -3,10 +3,6 @@ from core.materials.models import Material, MaterialCategory, MaterialPriceHisto
 
 
 class MaterialCategorySerializer(serializers.ModelSerializer):
-    """
-    Serializer for MaterialCategory model.
-    """
-
     material_count = serializers.IntegerField(read_only=True, required=False)
 
     class Meta:
@@ -16,10 +12,6 @@ class MaterialCategorySerializer(serializers.ModelSerializer):
 
 
 class MaterialListSerializer(serializers.ModelSerializer):
-    """
-    Serializer for listing Material objects with minimal information.
-    """
-
     category_name = serializers.CharField(source="category.name", read_only=True)
 
     class Meta:
@@ -30,7 +22,7 @@ class MaterialListSerializer(serializers.ModelSerializer):
             "name",
             "category",
             "category_name",
-            "unit",
+            "unit_of_measure",
             "unit_price",
             "is_active",
         ]
@@ -38,10 +30,6 @@ class MaterialListSerializer(serializers.ModelSerializer):
 
 
 class MaterialDetailSerializer(serializers.ModelSerializer):
-    """
-    Serializer for detailed Material information.
-    """
-
     category = MaterialCategorySerializer(read_only=True)
     created_by_name = serializers.CharField(
         source="created_by.get_full_name", read_only=True
@@ -56,7 +44,7 @@ class MaterialDetailSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "category",
-            "unit",
+            "unit_of_measure",
             "technical_specs",
             "unit_price",
             "is_active",
@@ -75,7 +63,6 @@ class MaterialDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_price_history(self, obj):
-        """Get the price history for the material."""
         history = obj.price_history.all()[:5]  # Get the 5 most recent price changes
         return [
             {
@@ -88,10 +75,6 @@ class MaterialDetailSerializer(serializers.ModelSerializer):
 
 
 class MaterialCreateUpdateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for creating and updating Material objects.
-    """
-
     class Meta:
         model = Material
         fields = [
@@ -99,24 +82,19 @@ class MaterialCreateUpdateSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "category",
-            "unit",
+            "unit_of_measure",
             "technical_specs",
             "unit_price",
             "is_active",
         ]
 
     def create(self, validated_data):
-        """Create a new material with the current user as created_by."""
         user = self.context["request"].user
         validated_data["created_by"] = user
         return super().create(validated_data)
 
 
 class MaterialPriceHistorySerializer(serializers.ModelSerializer):
-    """
-    Serializer for MaterialPriceHistory model.
-    """
-
     recorded_by_name = serializers.CharField(
         source="recorded_by.get_full_name", read_only=True
     )

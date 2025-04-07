@@ -4,7 +4,11 @@ from django.utils import timezone
 from decimal import Decimal
 
 from core.common.services import BaseService
-from .repositories import MaterialRepository, MaterialCategoryRepository
+from .repositories import (
+    MaterialRepository,
+    MaterialCategoryRepository,
+    MaterialPriceHistoryRepository,
+)
 from .models import Material, MaterialCategory, MaterialPriceHistory
 
 
@@ -100,16 +104,28 @@ class MaterialService(BaseService[Material]):
         material.unit_price = price
         material.save()
 
-        # Create price history record
-        MaterialPriceHistory.objects.create(
-            material=material,
-            price=price,
-            effective_date=effective_date,
-            recorded_by_id=user_id,
-            notes=notes,
+        # Create price history record using the price history service
+        price_history_service = MaterialPriceHistoryService()
+        price_history_service.create(
+            {
+                "material": material,
+                "price": price,
+                "effective_date": effective_date,
+                "recorded_by_id": user_id,
+                "notes": notes,
+            }
         )
 
         return material
+
+    def get_materials_with_price_history(self) -> QuerySet:
+        """
+        Get materials with their price history.
+
+        Returns:
+            QuerySet of materials with prefetched price history
+        """
+        return self.repository.get_materials_with_price_history()
 
 
 class MaterialCategoryService(BaseService[MaterialCategory]):
@@ -166,3 +182,55 @@ class MaterialCategoryService(BaseService[MaterialCategory]):
             QuerySet of subcategories
         """
         return self.repository.get_subcategories(parent_id)
+
+
+class MaterialPriceHistoryService(BaseService[MaterialPriceHistory]):
+    """
+    Service for MaterialPriceHistory business logic.
+
+    This class provides business logic operations for the MaterialPriceHistory model.
+    """
+
+    def __init__(self):
+        """
+        Initialize the service with a MaterialPriceHistoryRepository.
+        """
+        super().__init__(MaterialPriceHistoryRepository())
+
+    def get_by_material(self, material_id: int) -> QuerySet:
+        """
+        Get price history for a specific material.
+
+        Args:
+            material_id: The material ID
+
+        Returns:
+            QuerySet of price history records for the specified material
+        """
+        return self.repository.get_by_material(material_id)
+
+    def get_latest_price(self, material_id: int) -> Optional[MaterialPriceHistory]:
+        """
+        Get the latest price for a specific material.
+
+        Args:
+            material_id: The material ID
+
+        Returns:
+            The latest price history record for the specified material, or None if not found
+        """
+        return self.repository.get_latest_price(material_id)
+
+    def get_by_date_range(self, material_id: int, start_date, end_date) -> QuerySet:
+        """
+        Get price history for a specific material within a date range.
+
+        Args:
+            material_id: The material ID
+            start_date: The start date
+            end_date: The end date
+
+        Returns:
+            QuerySet of price history records within the specified date range
+        """
+        return self.repository.get_by_date_range(material_id, start_date, end_date)

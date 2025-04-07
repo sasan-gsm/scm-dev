@@ -3,14 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
-
 from core.materials.services import MaterialService, MaterialCategoryService
 from .serializers import (
     MaterialListSerializer,
     MaterialDetailSerializer,
     MaterialCreateUpdateSerializer,
     MaterialCategorySerializer,
-    MaterialPriceHistorySerializer,
 )
 
 
@@ -25,13 +23,12 @@ class MaterialViewSet(viewsets.ModelViewSet):
         filters.SearchFilter,
         filters.OrderingFilter,
     ]
-    filterset_fields = ["category", "is_active"]
+    filterset_fields = {"category": ["exact"], "is_active": ["exact"]}
     search_fields = ["name", "code", "description"]
     ordering_fields = ["name", "code", "unit_price", "created_at"]
     ordering = ["name"]
 
     def get_serializer_class(self):
-        """Return the serializer class for request."""
         if self.action == "list":
             return MaterialListSerializer
         elif self.action in ["create", "update", "partial_update"]:
@@ -39,12 +36,10 @@ class MaterialViewSet(viewsets.ModelViewSet):
         return MaterialDetailSerializer
 
     def get_queryset(self):
-        """Get the list of materials for this view."""
         service = MaterialService()
         return service.get_all()
 
     def create(self, request, *args, **kwargs):
-        """Create a new material."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -58,7 +53,6 @@ class MaterialViewSet(viewsets.ModelViewSet):
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
-        """Update an existing material."""
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
