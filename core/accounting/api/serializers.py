@@ -49,7 +49,7 @@ class ExpenseListSerializer(serializers.ModelSerializer):
             "expense_date",
             "project_id",
             "project_name",
-            "category",
+            # "category",
             "category_name",
             "allocation_type",
             "created_by_id",
@@ -85,7 +85,6 @@ class ExpenseDetailSerializer(serializers.ModelSerializer):
             "project",
             "category",
             "allocation_type",
-            "notes",
             "created_by",
             "created_at",
             "updated_at",
@@ -111,7 +110,7 @@ class ExpenseDetailSerializer(serializers.ModelSerializer):
 
 class ExpenseCreateSerializer(serializers.ModelSerializer):
     """
-    Serializer for creating a new Expense.
+    Serializer for creating a new GeneralExpense.
     """
 
     class Meta:
@@ -121,9 +120,7 @@ class ExpenseCreateSerializer(serializers.ModelSerializer):
             "amount",
             "expense_date",
             "project",
-            "category",
             "allocation_type",
-            "notes",
         ]
 
     def create(self, validated_data):

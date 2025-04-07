@@ -39,7 +39,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         filters.SearchFilter,
         filters.OrderingFilter,
     ]
-    filterset_fields = ["project", "category", "status", "created_by"]
+    filterset_fields = ["project", "created_by"]
     search_fields = ["expense_number", "description", "notes"]
     ordering_fields = ["date", "amount", "created_at"]
     ordering = ["-date"]
