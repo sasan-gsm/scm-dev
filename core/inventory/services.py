@@ -394,7 +394,7 @@ class InventoryTransactionService(BaseService):
         Returns:
             QuerySet of InventoryTransaction objects
         """
-        return self.repository.get_by_project(project_id)
+        return self.repository.get_project_transactions(project_id)
 
     @transaction.atomic
     def create(self, data: Dict[str, Any]) -> InventoryTransaction:

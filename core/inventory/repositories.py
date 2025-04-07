@@ -1,7 +1,6 @@
-from typing import Optional, List
-from django.db.models import Q, QuerySet, Sum, F, Value
+from typing import Optional
+from django.db.models import QuerySet, Sum, F, Value
 from django.db.models.functions import Coalesce
-
 from core.common.repositories import BaseRepository
 from .models import InventoryItem, InventoryTransaction, Warehouse, InventoryLocation
 
@@ -65,20 +64,17 @@ class InventoryRepository(BaseRepository[InventoryItem]):
         """
         super().__init__(InventoryItem)
 
-    def get_by_material(self, material_id: int) -> Optional[InventoryItem]:
+    def get_by_material(self, material_id: int) -> QuerySet:
         """
-        Retrieve inventory for a specific material.
+        Retrieve inventory items for a specific material.
 
         Args:
             material_id: The material ID
 
         Returns:
-            The inventory if found, None otherwise
+            QuerySet of inventory items for the specified material
         """
-        try:
-            return self.model_class.objects.get(material_id=material_id)
-        except self.model_class.DoesNotExist:
-            return None
+        return self.model_class.objects.filter(material_id=material_id)
 
     def get_low_inventory(self) -> QuerySet:
         """
@@ -87,9 +83,7 @@ class InventoryRepository(BaseRepository[InventoryItem]):
         Returns:
             QuerySet of inventory items with low quantity
         """
-        return self.model_class.objects.filter(
-            quantity__lt=F("material__min_inventory_level")
-        )
+        return self.model_class.objects.filter(quantity__lt=F("min_quantity"))
 
     def get_low_inventory_with_alerts(self) -> QuerySet:
         """
@@ -99,9 +93,21 @@ class InventoryRepository(BaseRepository[InventoryItem]):
             QuerySet of inventory items with low quantity and alerts enabled
         """
         return self.model_class.objects.filter(
-            quantity__lt=F("material__min_inventory_level"),
-            material__alert_enabled=True,
+            quantity__lt=F("min_quantity"),
+            monitor_stock_level=True,
         )
+
+    def get_by_warehouse(self, warehouse_id: int) -> QuerySet:
+        """
+        Get inventory items in a specific warehouse.
+
+        Args:
+            warehouse_id: The warehouse ID
+
+        Returns:
+            QuerySet of inventory items in the specified warehouse
+        """
+        return self.model_class.objects.filter(warehouse_id=warehouse_id)
 
     def get_inventory_value(self) -> float:
         """
@@ -142,19 +148,18 @@ class InventoryTransactionRepository(BaseRepository[InventoryTransaction]):
         """
         super().__init__(InventoryTransaction)
 
-    def get_by_reference(self, reference_type: str, reference_id: int) -> QuerySet:
+    def get_by_purchase_order_item(self, purchase_order_item_id: int) -> QuerySet:
         """
-        Get transactions by reference type and ID.
+        Get transactions by purchase order item ID.
 
         Args:
-            reference_type: The reference type (e.g., 'purchase_order', 'request')
-            reference_id: The reference ID
+            purchase_order_item_id: The purchase order item ID
 
         Returns:
-            QuerySet of transactions with the specified reference
+            QuerySet of transactions with the specified purchase order item
         """
         return self.model_class.objects.filter(
-            reference_type=reference_type, reference_id=reference_id
+            purchase_order_item_id=purchase_order_item_id
         )
 
     def get_material_transactions(self, material_id: int) -> QuerySet:
@@ -219,5 +224,5 @@ class InventoryTransactionRepository(BaseRepository[InventoryTransaction]):
             QuerySet of transactions within the specified date range
         """
         return self.model_class.objects.filter(
-            transaction_date__gte=start_date, transaction_date__lte=end_date
+            created_at__date__gte=start_date, created_at__date__lte=end_date
         )
