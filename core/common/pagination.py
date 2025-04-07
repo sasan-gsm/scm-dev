@@ -1,26 +1,12 @@
 from rest_framework.pagination import CursorPagination
-<<<<<<< Updated upstream
-from django.db.models import QuerySet
-=======
 from rest_framework.response import Response
 from django.db.models import QuerySet
 from typing import Optional, List, Dict, Any, Union
->>>>>>> Stashed changes
 
 
 class CursorPaginationWithCount(CursorPagination):
     """
     Extends CursorPagination to include a count of total items.
-<<<<<<< Updated upstream
-    """
-
-    page_size = 100
-    page_size_query_param = "page_size"
-    max_page_size = 1000
-    ordering = "-created_at"  # Default ordering
-
-    def paginate_queryset(self, queryset, request, view=None):
-=======
 
     This is particularly useful for the inventory transaction listing
     which can contain thousands of records.
@@ -46,18 +32,10 @@ class CursorPaginationWithCount(CursorPagination):
         Returns:
             A list of paginated items or None if pagination is not needed
         """
->>>>>>> Stashed changes
         # Get the paginated result from the parent class
         result = super().paginate_queryset(queryset, request, view)
 
         # If we have a result, add a count
-<<<<<<< Updated upstream
-        if result is not None and isinstance(queryset, QuerySet):
-            self.count = queryset.count()
-        return result
-
-    def get_paginated_response(self, data):
-=======
         if result and isinstance(queryset, QuerySet):
             self.count = queryset.count()
         return result
@@ -72,7 +50,6 @@ class CursorPaginationWithCount(CursorPagination):
         Returns:
             Response object with pagination metadata and results
         """
->>>>>>> Stashed changes
         # Get the standard response from parent
         response = super().get_paginated_response(data)
 

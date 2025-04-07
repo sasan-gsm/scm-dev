@@ -181,3 +181,37 @@ class BaseService(Generic[T]):
             entity: The deleted entity
         """
         pass
+
+    def filter(self, **kwargs) -> QuerySet:
+        """
+        Filter entities by the given criteria.
+
+        Args:
+            **kwargs: Filter criteria
+
+        Returns:
+            QuerySet of filtered entities
+        """
+        return self.repository.filter(**kwargs)
+
+    def bulk_create(self, entities: List[T]) -> List[T]:
+        """
+        Create multiple entities in a single database query.
+
+        Args:
+            entities: List of entity instances to create
+
+        Returns:
+            List of created entities
+        """
+        return self.repository.bulk_create(entities)
+
+    def bulk_update(self, entities: List[T], fields: List[str]) -> None:
+        """
+        Update multiple entities in a single database query.
+
+        Args:
+            entities: List of entity instances to update
+            fields: List of field names to update
+        """
+        self.repository.bulk_update(entities, fields)
