@@ -22,8 +22,10 @@ class AttachmentViewSet(viewsets.ModelViewSet):
         filters.SearchFilter,
         filters.OrderingFilter,
     ]
-    filterset_fields = ["object_type", "object_id", "content_type_group"]
-    search_fields = ["filename", "description"]
+    filterset_fields = [
+        "object_id"
+    ]  # Removed object_type and content_type_group as they're not model fields
+    search_fields = ["name", "description"]
     ordering_fields = ["created_at", "file_size"]
     ordering = ["-created_at"]
 

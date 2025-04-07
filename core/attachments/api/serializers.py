@@ -13,12 +13,16 @@ class AttachmentSerializer(serializers.ModelSerializer):
 
     uploaded_by_name = serializers.SerializerMethodField()
     file_size_display = serializers.SerializerMethodField()
+    filename = serializers.SerializerMethodField()
+    object_type = serializers.SerializerMethodField()
+    content_type_group = serializers.SerializerMethodField()
 
     class Meta:
         model = Attachment
         fields = [
             "id",
             "file",
+            "name",
             "filename",
             "content_type",
             "file_size",
@@ -34,6 +38,7 @@ class AttachmentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "name",
             "filename",
             "content_type",
             "file_size",
@@ -59,3 +64,42 @@ class AttachmentSerializer(serializers.ModelSerializer):
                 return f"{size:.2f} {unit}"
             size /= 1024.0
         return f"{size:.2f} TB"
+
+    def get_filename(self, obj):
+        """Get the filename from the file field."""
+        if obj.file:
+            return obj.file.name.split("/")[-1]
+        return None
+
+    def get_object_type(self, obj):
+        """Get the object type (model name) from the content type."""
+        if obj.content_type:
+            return obj.content_type.model
+        return None
+
+    def get_content_type_group(self, obj):
+        """Get the content type group based on file type."""
+        if obj.file_type:
+            if obj.file_type.lower() in [
+                "jpg",
+                "jpeg",
+                "png",
+                "gif",
+                "bmp",
+                "svg",
+                "webp",
+            ]:
+                return "image"
+            elif obj.file_type.lower() in [
+                "pdf",
+                "doc",
+                "docx",
+                "xls",
+                "xlsx",
+                "ppt",
+                "pptx",
+                "txt",
+                "csv",
+            ]:
+                return "document"
+        return "other"
