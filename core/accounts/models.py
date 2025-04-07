@@ -6,8 +6,8 @@ from django.utils.translation import gettext_lazy as _
 
 class User(AbstractUser, TimeStampedModel):
     """
-    Custom user model that extends Django's AbstractUser.
-    Allows login with username, email, or phone number.
+    Custom user model extends Django's AbstractUser.
+    Login with username, email, or phone number.
     """
 
     email = models.EmailField(_("email address"), unique=True, blank=True, null=True)
@@ -40,7 +40,7 @@ class User(AbstractUser, TimeStampedModel):
 
 class Department(TimeStampedModel):
     """
-    Represents company departments in a hierarchical structure.
+    Company departments structure.
     """
 
     name = models.CharField(max_length=100)

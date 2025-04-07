@@ -2,9 +2,7 @@ from typing import Optional
 from django.db.models import Q, QuerySet
 from django.contrib.auth import get_user_model
 from core.common.repositories import BaseRepository
-from .models import UserProfile, Role, Permission
-
-User = get_user_model()
+from .models import User, Permission
 
 
 class UserRepository(BaseRepository[User]):
@@ -86,88 +84,6 @@ class UserRepository(BaseRepository[User]):
         )
 
 
-class UserProfileRepository(BaseRepository[UserProfile]):
-    """
-    Repository for UserProfile model operations.
-
-    Provides data access operations specific to the UserProfile model.
-    """
-
-    def __init__(self):
-        """
-        Initialize the repository with the UserProfile model.
-        """
-        super().__init__(UserProfile)
-
-    def get_by_user(self, user_id: int) -> Optional[UserProfile]:
-        """
-        Retrieve a user profile by user ID.
-
-        Args:
-            user_id: The user ID
-
-        Returns:
-            The user profile if found, None otherwise
-        """
-        try:
-            return self.model_class.objects.get(user_id=user_id)
-        except self.model_class.DoesNotExist:
-            return None
-
-    def get_by_department(self, department: str) -> QuerySet:
-        """
-        Get user profiles by department.
-
-        Args:
-            department: The department name
-
-        Returns:
-            QuerySet of user profiles in the specified department
-        """
-        return self.model_class.objects.filter(department=department)
-
-
-class RoleRepository(BaseRepository[Role]):
-    """
-    Repository for Role model operations.
-
-    Provides data access operations specific to the Role model.
-    """
-
-    def __init__(self):
-        """
-        Initialize the repository with the Role model.
-        """
-        super().__init__(Role)
-
-    def get_by_name(self, name: str) -> Optional[Role]:
-        """
-        Retrieve a role by name.
-
-        Args:
-            name: The role name
-
-        Returns:
-            The role if found, None otherwise
-        """
-        try:
-            return self.model_class.objects.get(name=name)
-        except self.model_class.DoesNotExist:
-            return None
-
-    def get_by_user(self, user_id: int) -> QuerySet:
-        """
-        Get roles assigned to a specific user.
-
-        Args:
-            user_id: The user ID
-
-        Returns:
-            QuerySet of roles assigned to the specified user
-        """
-        return self.model_class.objects.filter(users__id=user_id)
-
-
 class PermissionRepository(BaseRepository[Permission]):
     """
     Repository for Permission model operations.
@@ -196,21 +112,9 @@ class PermissionRepository(BaseRepository[Permission]):
         except self.model_class.DoesNotExist:
             return None
 
-    def get_by_role(self, role_id: int) -> QuerySet:
-        """
-        Get permissions assigned to a specific role.
-
-        Args:
-            role_id: The role ID
-
-        Returns:
-            QuerySet of permissions assigned to the specified role
-        """
-        return self.model_class.objects.filter(roles__id=role_id)
-
     def get_by_user(self, user_id: int) -> QuerySet:
         """
-        Get permissions assigned to a specific user through their roles.
+        Get permissions assigned to a specific user through custom_permissions.
 
         Args:
             user_id: The user ID
@@ -218,4 +122,27 @@ class PermissionRepository(BaseRepository[Permission]):
         Returns:
             QuerySet of permissions assigned to the specified user
         """
-        return self.model_class.objects.filter(roles__users__id=user_id).distinct()
+        return self.model_class.objects.filter(
+            users_with_permission__id=user_id
+        ).distinct()
+
+    def get_by_department(self, department_id: int) -> QuerySet:
+        """
+        Get permissions assigned to a specific department.
+
+        Args:
+            department_id: The department ID
+
+        Returns:
+            QuerySet of permissions assigned to the specified department
+        """
+        return self.model_class.objects.filter(department_id=department_id)
+
+    def get_basic_permissions(self) -> QuerySet:
+        """
+        Get all basic permissions that are automatically assigned to users in a department.
+
+        Returns:
+            QuerySet of basic permissions
+        """
+        return self.model_class.objects.filter(is_basic=True)

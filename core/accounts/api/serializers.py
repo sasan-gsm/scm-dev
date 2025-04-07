@@ -28,6 +28,7 @@ class UserSerializer(serializers.ModelSerializer):
             "is_manager",
         ]
         read_only_fields = ["id", "date_joined", "last_login"]
+        ref_name = "AccountUserSerializer"
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
