@@ -115,7 +115,11 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         filters.SearchFilter,
         filters.OrderingFilter,
     ]
-    filterset_fields = ["supplier", "project", "status"]
+    filterset_fields = {
+        "supplier": ["exact"],
+        "project": ["exact"],
+        "status": ["exact"],
+    }
     search_fields = ["order_number", "notes"]
     ordering_fields = ["order_date", "expected_delivery_date", "created_at"]
     ordering = ["-created_at"]
@@ -138,7 +142,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         # Annotate with item count and total amount
         return queryset.annotate(
             item_count=models.Count("items"),
-            total_amount=models.Sum(models.F("items__total_price")),
+            calculated_total=models.Sum(models.F("items__total_price")),
         )
 
     def create(self, request, *args, **kwargs):
@@ -205,7 +209,8 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         """Reject a purchase order."""
         service = PurchaseOrderService()
         try:
-            rejected_order = service.reject(pk)
+            reason = request.data.get("reason")
+            rejected_order = service.reject(pk, reason)
             if rejected_order:
                 return Response(PurchaseOrderDetailSerializer(rejected_order).data)
             return Response(
@@ -220,7 +225,8 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         """Cancel a purchase order."""
         service = PurchaseOrderService()
         try:
-            cancelled_order = service.cancel(pk)
+            reason = request.data.get("reason")
+            cancelled_order = service.cancel(pk, reason)
             if cancelled_order:
                 return Response(PurchaseOrderDetailSerializer(cancelled_order).data)
             return Response(
@@ -235,7 +241,13 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         """Mark a purchase order as received."""
         service = PurchaseOrderService()
         try:
-            received_order = service.receive(pk)
+            # Get items data from request if provided, otherwise receive the entire order
+            items_data = request.data.get("items", [])
+            if items_data:
+                received_order = service.receive_items(pk, items_data)
+            else:
+                received_order = service.receive(pk)
+
             if received_order:
                 return Response(PurchaseOrderDetailSerializer(received_order).data)
             return Response(
@@ -296,7 +308,11 @@ class PurchaseOrderItemViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = PurchaseOrderItemSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ["purchase_order", "material", "status"]
+    filterset_fields = {
+        "purchase_order": ["exact"],
+        "material": ["exact"],
+        "status": ["exact"],
+    }
     ordering_fields = ["created_at"]
     ordering = ["-created_at"]
 

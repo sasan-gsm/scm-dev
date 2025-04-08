@@ -18,6 +18,8 @@ from core.inventory.services import InventoryService
 class SupplierService(BaseService[Supplier]):
     """
     Service for Supplier business logic.
+
+    This class provides business logic operations for the Supplier model.
     """
 
     def __init__(self):
@@ -27,15 +29,6 @@ class SupplierService(BaseService[Supplier]):
         super().__init__(SupplierRepository())
 
     def get_by_code(self, code: str) -> Optional[Supplier]:
-        """
-        Get a supplier by its code.
-
-        Args:
-            code: The supplier code
-
-        Returns:
-            The supplier if found, None otherwise
-        """
         return self.repository.get_by_code(code)
 
     def get_active_suppliers(self) -> QuerySet:
@@ -51,6 +44,8 @@ class SupplierService(BaseService[Supplier]):
 class SupplierContactService(BaseService[SupplierContact]):
     """
     Service for SupplierContact business logic.
+
+    This class provides business logic operations for the SupplierContact model.
     """
 
     def __init__(self):
@@ -83,6 +78,15 @@ class SupplierContactService(BaseService[SupplierContact]):
         """
         return self.repository.get_primary_contact(supplier_id)
 
+    def get_primary_contacts(self) -> QuerySet:
+        """
+        Get primary contacts for all suppliers.
+
+        Returns:
+            QuerySet of primary contacts
+        """
+        return self.repository.model_class.objects.filter(is_primary=True)
+
     def set_as_primary(self, contact_id: int) -> Optional[SupplierContact]:
         """
         Set a contact as the primary contact for its supplier.
@@ -100,11 +104,42 @@ class SupplierContactService(BaseService[SupplierContact]):
         with transaction.atomic():
             # Clear primary flag for all contacts of this supplier
             self.repository.model_class.objects.filter(
-                supplier_id=contact.supplier_id, is_primary=True
+                supplier=contact.supplier, is_primary=True
             ).update(is_primary=False)
 
             # Set this contact as primary
             return self.update(contact_id, {"is_primary": True})
+
+    def _validate_create(self, data: Dict[str, Any]) -> None:
+        """
+        Validate data before creating a supplier contact.
+
+        Args:
+            data: The supplier contact data
+
+        Raises:
+            ValueError: If the data is invalid
+        """
+        # Ensure required fields are present
+        required_fields = ["supplier", "name", "email"]
+        for field in required_fields:
+            if field not in data:
+                raise ValueError(f"Missing required field: {field}")
+
+        # If this is the first contact for the supplier, make it primary
+        if "is_primary" not in data:
+            supplier_contacts = self.get_by_supplier(data["supplier"].id)
+            data["is_primary"] = not supplier_contacts.exists()
+
+        # If setting as primary, ensure no other contact is primary
+        if data.get("is_primary", False):
+            primary_contacts = self.get_by_supplier(data["supplier"].id).filter(
+                is_primary=True
+            )
+            if primary_contacts.exists():
+                for contact in primary_contacts:
+                    contact.is_primary = False
+                    contact.save()
 
 
 class PurchaseOrderService(BaseService[PurchaseOrder]):
@@ -291,40 +326,55 @@ class PurchaseOrderService(BaseService[PurchaseOrder]):
                 order_item = order_items.first()
 
                 # Validate quantity
-                remaining_quantity = order_item.quantity - order_item.quantity_received
+                remaining_quantity = order_item.quantity - order_item.received_quantity
                 if quantity > remaining_quantity:
                     raise ValueError(
                         f"Quantity exceeds remaining quantity for material {material_id}"
                     )
 
                 # Update order item
-                new_received_quantity = order_item.quantity_received + quantity
+                new_received_quantity = order_item.received_quantity + quantity
                 is_fully_received = new_received_quantity >= order_item.quantity
 
                 item_service.update(
                     order_item.id,
                     {
-                        "quantity_received": new_received_quantity,
-                        "is_received": is_fully_received,
-                        "receipt_date": timezone.now() if is_fully_received else None,
+                        "received_quantity": new_received_quantity,
+                        "status": "fully_received"
+                        if is_fully_received
+                        else "partially_received",
+                        "actual_delivery_date": timezone.now()
+                        if is_fully_received
+                        else None,
                     },
                 )
 
                 # Update inventory
-                inventory_service.adjust_quantity(
-                    material_id,
-                    quantity,
-                    f"Receipt from PO {order.number}",
-                    "purchase_order",
-                    order_id,
-                )
+                # First get or create inventory item for this material
+                inventory_item = inventory_service.get_by_material(material_id).first()
+                if inventory_item:
+                    inventory_service.adjust_quantity(
+                        inventory_item.id,
+                        quantity,
+                        f"Receipt from PO {order.order_number}",
+                        order.created_by_id,  # Using the PO creator as the performer
+                        order.project_id,
+                    )
+                else:
+                    # Handle case where inventory item doesn't exist yet
+                    # This would need proper warehouse selection logic in a real implementation
+                    raise ValueError(
+                        f"No inventory record exists for material {material_id}. Please create inventory record first."
+                    )
 
                 # Check if all items are fully received
                 if not is_fully_received:
                     all_items_received = False
 
             # Update order status
-            new_status = "received" if all_items_received else "partially_received"
+            new_status = (
+                "fully_received" if all_items_received else "partially_received"
+            )
             return self.update(
                 order_id,
                 {
@@ -333,7 +383,117 @@ class PurchaseOrderService(BaseService[PurchaseOrder]):
                 },
             )
 
-    def cancel_order(self, order_id: int, reason: str) -> Optional[PurchaseOrder]:
+    def submit_for_approval(self, order_id: int) -> Optional[PurchaseOrder]:
+        """
+        Submit a purchase order for approval.
+
+        Args:
+            order_id: The purchase order ID
+
+        Returns:
+            The updated purchase order if found, None otherwise
+        """
+        # Get the purchase order
+        order = self.get_by_id(order_id)
+        if not order:
+            return None
+
+        # Ensure order is in draft status
+        if order.status != "draft":
+            raise ValueError(
+                f"Order is not in draft status (current status: {order.status})"
+            )
+
+        # Update the order
+        return self.update(order_id, {"status": "pending_approval"})
+
+    def approve(self, order_id: int) -> Optional[PurchaseOrder]:
+        """
+        Approve a purchase order.
+
+        Args:
+            order_id: The purchase order ID
+
+        Returns:
+            The updated purchase order if found, None otherwise
+        """
+        # Get the purchase order
+        order = self.get_by_id(order_id)
+        if not order:
+            return None
+
+        # Ensure order is in pending_approval status
+        if order.status != "pending_approval":
+            raise ValueError(
+                f"Order is not pending approval (current status: {order.status})"
+            )
+
+        # Update the order
+        return self.update(
+            order_id, {"status": "approved", "approval_date": timezone.now()}
+        )
+
+    def reject(self, order_id: int, reason: str = None) -> Optional[PurchaseOrder]:
+        """
+        Reject a purchase order.
+
+        Args:
+            order_id: The purchase order ID
+            reason: The rejection reason
+
+        Returns:
+            The updated purchase order if found, None otherwise
+        """
+        # Get the purchase order
+        order = self.get_by_id(order_id)
+        if not order:
+            return None
+
+        # Ensure order is in pending_approval status
+        if order.status != "pending_approval":
+            raise ValueError(
+                f"Order is not pending approval (current status: {order.status})"
+            )
+
+        # Update the order
+        data = {"status": "rejected", "rejection_date": timezone.now()}
+        if reason:
+            data["rejection_reason"] = reason
+
+        return self.update(order_id, data)
+
+    def receive(self, order_id: int) -> Optional[PurchaseOrder]:
+        """
+        Mark a purchase order as received.
+
+        Args:
+            order_id: The purchase order ID
+
+        Returns:
+            The updated purchase order if found, None otherwise
+        """
+        # Get the purchase order
+        order = self.get_by_id(order_id)
+        if not order:
+            return None
+
+        # Ensure order is in a valid status for receiving
+        valid_statuses = ["approved", "sent", "confirmed", "partially_received"]
+        if order.status not in valid_statuses:
+            raise ValueError(
+                f"Order is not in a valid status for receiving (current status: {order.status})"
+            )
+
+        # Update the order
+        return self.update(
+            order_id,
+            {
+                "status": "fully_received",
+                "receipt_date": timezone.now(),
+            },
+        )
+
+    def cancel(self, order_id: int, reason: str = None) -> Optional[PurchaseOrder]:
         """
         Cancel a purchase order.
 
@@ -350,21 +510,22 @@ class PurchaseOrderService(BaseService[PurchaseOrder]):
             return None
 
         # Ensure order is in a valid status for cancellation
-        valid_statuses = ["draft", "sent", "confirmed"]
+        valid_statuses = ["draft", "pending_approval", "approved", "sent", "confirmed"]
         if order.status not in valid_statuses:
             raise ValueError(
                 f"Order cannot be cancelled in its current status: {order.status}"
             )
 
         # Update the order
-        return self.update(
-            order_id,
-            {
-                "status": "cancelled",
-                "cancellation_date": timezone.now(),
-                "cancellation_reason": reason,
-            },
-        )
+        data = {
+            "status": "cancelled",
+            "cancellation_date": timezone.now(),
+        }
+
+        if reason:
+            data["cancellation_reason"] = reason
+
+        return self.update(order_id, data)
 
     def get_total_by_supplier(self) -> QuerySet:
         """
@@ -392,22 +553,22 @@ class PurchaseOrderService(BaseService[PurchaseOrder]):
                 raise ValueError(f"Missing required field: {field}")
 
         # Generate PO number if not provided
-        if "number" not in data:
+        if "order_number" not in data:
             # Generate a unique PO number (e.g., PO-YYYYMMDD-XXXX)
             today = timezone.now().strftime("%Y%m%d")
             last_po = (
-                self.model_class.objects.filter(number__startswith=f"PO-{today}")
-                .order_by("-number")
+                self.model_class.objects.filter(order_number__startswith=f"PO-{today}")
+                .order_by("-order_number")
                 .first()
             )
 
             if last_po:
-                last_number = int(last_po.number.split("-")[-1])
+                last_number = int(last_po.order_number.split("-")[-1])
                 new_number = f"PO-{today}-{last_number + 1:04d}"
             else:
                 new_number = f"PO-{today}-0001"
 
-            data["number"] = new_number
+            data["order_number"] = new_number
 
         # Set initial status if not provided
         if "status" not in data:
@@ -432,8 +593,8 @@ class PurchaseOrderService(BaseService[PurchaseOrder]):
         if "supplier" in data and entity.status != "draft":
             raise ValueError("Cannot change supplier for non-draft orders")
 
-        # Prevent changing number
-        if "number" in data and data["number"] != entity.number:
+        # Prevent changing order number
+        if "order_number" in data and data["order_number"] != entity.order_number:
             raise ValueError("Cannot change purchase order number")
 
 
@@ -529,19 +690,19 @@ class PurchaseOrderItemService(BaseService[PurchaseOrderItem]):
             raise ValueError("Unit price must be positive")
 
         # Initialize receipt fields if not provided
-        if "quantity_received" not in data:
-            data["quantity_received"] = 0
+        if "received_quantity" not in data:
+            data["received_quantity"] = 0
 
         if "is_received" not in data:
             data["is_received"] = False
 
-        # Calculate line total if not provided
-        if "line_total" not in data:
-            data["line_total"] = data["quantity"] * data["unit_price"]
+        # Calculate total price if not provided
+        if "total_price" not in data:
+            data["total_price"] = data["quantity"] * data["unit_price"]
 
         # Update purchase order total amount
         purchase_order = data["purchase_order"]
-        purchase_order.total_amount += data["line_total"]
+        purchase_order.total_amount += data["total_price"]
         purchase_order.save()
 
     def _after_update(self, entity: PurchaseOrderItem) -> None:
@@ -551,225 +712,18 @@ class PurchaseOrderItemService(BaseService[PurchaseOrderItem]):
         Args:
             entity: The updated purchase order item
         """
-        # Recalculate line total if quantity or unit price changed
-        if entity.line_total != entity.quantity * entity.unit_price:
-            old_line_total = entity.line_total
-            entity.line_total = entity.quantity * entity.unit_price
+        # Recalculate total price if quantity or unit price changed
+        if entity.total_price != entity.quantity * entity.unit_price:
+            old_total_price = entity.total_price
+            entity.total_price = entity.quantity * entity.unit_price
             entity.save()
 
             # Update purchase order total amount
             purchase_order = entity.purchase_order
             purchase_order.total_amount = (
-                purchase_order.total_amount - old_line_total + entity.line_total
+                purchase_order.total_amount - old_total_price + entity.total_price
             )
             purchase_order.save()
 
 
-class SupplierService(BaseService[Supplier]):
-    """
-    Service for Supplier business logic.
-
-    This class provides business logic operations for the Supplier model.
-    """
-
-    def __init__(self):
-        """
-        Initialize the service with a SupplierRepository.
-        """
-        super().__init__(SupplierRepository())
-
-    def get_by_code(self, code: str) -> Optional[Supplier]:
-        """
-        Get a supplier by its code.
-
-        Args:
-            code: The supplier code
-
-        Returns:
-            The supplier if found, None otherwise
-        """
-        return self.repository.get_by_code(code)
-
-    def search(self, query: str) -> QuerySet:
-        """
-        Search for suppliers by name, code, or description.
-
-        Args:
-            query: The search query
-
-        Returns:
-            QuerySet of matching suppliers
-        """
-        return self.repository.search(query)
-
-    def get_active_suppliers(self) -> QuerySet:
-        """
-        Get active suppliers.
-
-        Returns:
-            QuerySet of active suppliers
-        """
-        return self.repository.get_active_suppliers()
-
-    def get_suppliers_with_contacts(self) -> QuerySet:
-        """
-        Get suppliers with their contacts prefetched.
-
-        Returns:
-            QuerySet of suppliers with prefetched contacts
-        """
-        return self.repository.get_suppliers_with_contacts()
-
-    def get_suppliers_by_material(self, material_id: int) -> QuerySet:
-        """
-        Get suppliers that provide a specific material.
-
-        Args:
-            material_id: The material ID
-
-        Returns:
-            QuerySet of suppliers that provide the specified material
-        """
-        return self.repository.get_suppliers_by_material(material_id)
-
-    def deactivate(self, supplier_id: int) -> Optional[Supplier]:
-        """
-        Deactivate a supplier.
-
-        Args:
-            supplier_id: The supplier ID
-
-        Returns:
-            The updated supplier if found, None otherwise
-        """
-        return self.update(supplier_id, {"is_active": False})
-
-    def activate(self, supplier_id: int) -> Optional[Supplier]:
-        """
-        Activate a supplier.
-
-        Args:
-            supplier_id: The supplier ID
-
-        Returns:
-            The updated supplier if found, None otherwise
-        """
-        return self.update(supplier_id, {"is_active": True})
-
-    def _validate_create(self, data: Dict[str, Any]) -> None:
-        """
-        Validate data before creating a supplier.
-
-        Args:
-            data: The supplier data
-
-        Raises:
-            ValueError: If the data is invalid
-        """
-        # Ensure required fields are present
-        required_fields = ["name", "code"]
-        for field in required_fields:
-            if field not in data:
-                raise ValueError(f"Missing required field: {field}")
-
-        # Check if code already exists
-        if self.get_by_code(data["code"]):
-            raise ValueError(f"Supplier with code {data['code']} already exists")
-
-        # Set is_active to True if not provided
-        if "is_active" not in data:
-            data["is_active"] = True
-
-
-class SupplierContactService(BaseService[SupplierContact]):
-    """
-    Service for SupplierContact business logic.
-
-    This class provides business logic operations for the SupplierContact model.
-    """
-
-    def __init__(self):
-        """
-        Initialize the service with a SupplierContactRepository.
-        """
-        super().__init__(SupplierContactRepository())
-
-    def get_by_supplier(self, supplier_id: int) -> QuerySet:
-        """
-        Get contacts for a specific supplier.
-
-        Args:
-            supplier_id: The supplier ID
-
-        Returns:
-            QuerySet of contacts for the specified supplier
-        """
-        return self.repository.get_by_supplier(supplier_id)
-
-    def get_primary_contacts(self) -> QuerySet:
-        """
-        Get primary contacts for suppliers.
-
-        Returns:
-            QuerySet of primary contacts
-        """
-        return self.repository.get_primary_contacts()
-
-    def set_as_primary(self, contact_id: int) -> Optional[SupplierContact]:
-        """
-        Set a contact as the primary contact for its supplier.
-
-        Args:
-            contact_id: The contact ID
-
-        Returns:
-            The updated contact if found, None otherwise
-        """
-        # Get the contact
-        contact = self.get_by_id(contact_id)
-        if not contact:
-            return None
-
-        # Get all contacts for this supplier
-        supplier_contacts = self.get_by_supplier(contact.supplier_id)
-
-        # Update all contacts
-        with transaction.atomic():
-            for sc in supplier_contacts:
-                if sc.id == contact_id:
-                    self.update(sc.id, {"is_primary": True})
-                elif sc.is_primary:
-                    self.update(sc.id, {"is_primary": False})
-
-        return self.get_by_id(contact_id)
-
-    def _validate_create(self, data: Dict[str, Any]) -> None:
-        """
-        Validate data before creating a supplier contact.
-
-        Args:
-            data: The supplier contact data
-
-        Raises:
-            ValueError: If the data is invalid
-        """
-        # Ensure required fields are present
-        required_fields = ["supplier", "name", "email"]
-        for field in required_fields:
-            if field not in data:
-                raise ValueError(f"Missing required field: {field}")
-
-        # If this is the first contact for the supplier, make it primary
-        if "is_primary" not in data:
-            supplier_contacts = self.get_by_supplier(data["supplier"].id)
-            data["is_primary"] = not supplier_contacts.exists()
-
-        # If setting as primary, ensure no other contact is primary
-        if data.get("is_primary", False):
-            primary_contacts = self.get_by_supplier(data["supplier"].id).filter(
-                is_primary=True
-            )
-            if primary_contacts.exists():
-                for contact in primary_contacts:
-                    contact.is_primary = False
-                    contact.save()
+# The duplicate SupplierContactService class has been removed and consolidated with the one at the top of the file

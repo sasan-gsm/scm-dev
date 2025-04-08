@@ -1,8 +1,7 @@
-from typing import Optional, List
-from django.db.models import Q, QuerySet, Count, Sum, F, Avg
+from typing import Optional
+from django.db.models import QuerySet, Count, Sum, F, Avg
 from django.utils import timezone
 from datetime import timedelta
-
 from core.common.repositories import BaseRepository
 from .models import PurchaseOrder, PurchaseOrderItem, Supplier, SupplierContact
 
@@ -86,6 +85,15 @@ class SupplierContactRepository(BaseRepository[SupplierContact]):
         ):
             return None
 
+    def get_primary_contacts(self) -> QuerySet:
+        """
+        Get primary contacts for all suppliers.
+
+        Returns:
+            QuerySet of primary contacts
+        """
+        return self.model_class.objects.filter(is_primary=True)
+
 
 class PurchaseOrderRepository(BaseRepository[PurchaseOrder]):
     """
@@ -111,7 +119,7 @@ class PurchaseOrderRepository(BaseRepository[PurchaseOrder]):
             The purchase order if found, None otherwise
         """
         try:
-            return self.model_class.objects.get(number=number)
+            return self.model_class.objects.get(order_number=number)
         except self.model_class.DoesNotExist:
             return None
 
@@ -238,7 +246,7 @@ class PurchaseOrderItemRepository(BaseRepository[PurchaseOrderItem]):
             QuerySet of items pending receipt
         """
         return self.model_class.objects.filter(
-            quantity_received__lt=F("quantity"),
+            received_quantity__lt=F("quantity"),
             purchase_order__status__in=["sent", "confirmed", "partially_received"],
         )
 
@@ -270,113 +278,3 @@ class PurchaseOrderItemRepository(BaseRepository[PurchaseOrderItem]):
             .annotate(avg_price=Avg("unit_price"))
             .order_by("material")
         )
-
-
-class SupplierRepository(BaseRepository[Supplier]):
-    """
-    Repository for Supplier model operations.
-
-    Provides data access operations specific to the Supplier model.
-    """
-
-    def __init__(self):
-        """
-        Initialize the repository with the Supplier model.
-        """
-        super().__init__(Supplier)
-
-    def get_by_code(self, code: str) -> Optional[Supplier]:
-        """
-        Retrieve a supplier by its code.
-
-        Args:
-            code: The supplier code
-
-        Returns:
-            The supplier if found, None otherwise
-        """
-        try:
-            return self.model_class.objects.get(code=code)
-        except self.model_class.DoesNotExist:
-            return None
-
-    def search(self, query: str) -> QuerySet:
-        """
-        Search for suppliers by name, code, or description.
-
-        Args:
-            query: The search query
-
-        Returns:
-            QuerySet of matching suppliers
-        """
-        return self.model_class.objects.filter(
-            Q(name__icontains=query)
-            | Q(code__icontains=query)
-            | Q(description__icontains=query)
-        )
-
-    def get_active_suppliers(self) -> QuerySet:
-        """
-        Get active suppliers.
-
-        Returns:
-            QuerySet of active suppliers
-        """
-        return self.model_class.objects.filter(is_active=True)
-
-    def get_suppliers_with_contacts(self) -> QuerySet:
-        """
-        Get suppliers with their contacts prefetched.
-
-        Returns:
-            QuerySet of suppliers with prefetched contacts
-        """
-        return self.model_class.objects.prefetch_related("contacts")
-
-    def get_suppliers_by_material(self, material_id: int) -> QuerySet:
-        """
-        Get suppliers that provide a specific material.
-
-        Args:
-            material_id: The material ID
-
-        Returns:
-            QuerySet of suppliers that provide the specified material
-        """
-        return self.model_class.objects.filter(materials__id=material_id)
-
-
-class SupplierContactRepository(BaseRepository[SupplierContact]):
-    """
-    Repository for SupplierContact model operations.
-
-    Provides data access operations specific to the SupplierContact model.
-    """
-
-    def __init__(self):
-        """
-        Initialize the repository with the SupplierContact model.
-        """
-        super().__init__(SupplierContact)
-
-    def get_by_supplier(self, supplier_id: int) -> QuerySet:
-        """
-        Get contacts for a specific supplier.
-
-        Args:
-            supplier_id: The supplier ID
-
-        Returns:
-            QuerySet of contacts for the specified supplier
-        """
-        return self.model_class.objects.filter(supplier_id=supplier_id)
-
-    def get_primary_contacts(self) -> QuerySet:
-        """
-        Get primary contacts for suppliers.
-
-        Returns:
-            QuerySet of primary contacts
-        """
-        return self.model_class.objects.filter(is_primary=True)

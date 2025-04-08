@@ -75,12 +75,27 @@ class PurchaseOrder(TimeStampedModel):
         related_name="purchase_orders",
         verbose_name=_("Supplier"),
     )
+    project = models.ForeignKey(
+        "projects.Project",
+        on_delete=models.PROTECT,
+        related_name="purchase_orders",
+        null=True,
+        blank=True,
+        verbose_name=_("Project"),
+    )
     order_number = models.CharField(
         max_length=50, unique=True, verbose_name=_("Order Number")
     )
     order_date = models.DateField(verbose_name=_("Order Date"))
-    expected_delivery = models.DateField(
-        null=True, blank=True, verbose_name=_("Expected Delivery")
+    expected_delivery_date = models.DateField(
+        null=True, blank=True, verbose_name=_("Expected Delivery Date")
+    )
+    delivery_address = models.TextField(blank=True, verbose_name=_("Delivery Address"))
+    shipping_method = models.CharField(
+        max_length=100, blank=True, verbose_name=_("Shipping Method")
+    )
+    payment_terms = models.CharField(
+        max_length=100, blank=True, verbose_name=_("Payment Terms")
     )
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default="draft", verbose_name=_("Status")
@@ -92,6 +107,9 @@ class PurchaseOrder(TimeStampedModel):
         verbose_name=_("Created By"),
     )
     notes = models.TextField(blank=True, verbose_name=_("Notes"))
+    total_amount = models.DecimalField(
+        max_digits=15, decimal_places=2, default=0, verbose_name=_("Total Amount")
+    )
 
     def __str__(self):
         return f"PO-{self.order_number}"
@@ -103,6 +121,14 @@ class PurchaseOrder(TimeStampedModel):
 
 
 class PurchaseOrderItem(TimeStampedModel):
+    STATUS_CHOICES = [
+        ("pending", _("Pending")),
+        ("ordered", _("Ordered")),
+        ("partially_received", _("Partially Received")),
+        ("fully_received", _("Fully Received")),
+        ("cancelled", _("Cancelled")),
+    ]
+
     purchase_order = models.ForeignKey(
         PurchaseOrder,
         on_delete=models.CASCADE,
@@ -123,9 +149,28 @@ class PurchaseOrderItem(TimeStampedModel):
     quantity = models.DecimalField(
         max_digits=10, decimal_places=2, verbose_name=_("Quantity")
     )
+    unit_price = models.DecimalField(
+        max_digits=12, decimal_places=2, verbose_name=_("Unit Price"), default=0
+    )
+    total_price = models.DecimalField(
+        max_digits=14, decimal_places=2, verbose_name=_("Total Price"), default=0
+    )
     received_quantity = models.DecimalField(
         max_digits=10, decimal_places=2, default=0, verbose_name=_("Received Quantity")
     )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="pending",
+        verbose_name=_("Status"),
+    )
+    expected_delivery_date = models.DateField(
+        null=True, blank=True, verbose_name=_("Expected Delivery Date")
+    )
+    actual_delivery_date = models.DateField(
+        null=True, blank=True, verbose_name=_("Actual Delivery Date")
+    )
+    notes = models.TextField(blank=True, verbose_name=_("Notes"))
 
     def __str__(self):
         return f"{self.material.name} - {self.quantity}"
