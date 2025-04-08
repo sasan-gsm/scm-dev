@@ -155,3 +155,31 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"])
+    def put_on_hold(self, request, pk=None):
+        """Put a project on hold."""
+        service = ProjectService()
+        try:
+            project = service.put_on_hold_project(pk)
+            if project:
+                return Response(ProjectDetailSerializer(project).data)
+            return Response(
+                {"detail": "Project not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        """Cancel a project."""
+        service = ProjectService()
+        try:
+            project = service.cancel_project(pk)
+            if project:
+                return Response(ProjectDetailSerializer(project).data)
+            return Response(
+                {"detail": "Project not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)

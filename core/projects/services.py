@@ -1,8 +1,6 @@
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from django.db.models import QuerySet
 from django.utils import timezone
-from datetime import timedelta
-
 from core.common.services import BaseService
 from .repositories import ProjectRepository
 from .models import Project
@@ -102,6 +100,30 @@ class ProjectService(BaseService[Project]):
         """
         return self.update(project_id, {"status": "completed"})
 
+    def put_on_hold_project(self, project_id: int) -> Optional[Project]:
+        """
+        Put a project on hold.
+
+        Args:
+            project_id: The project ID
+
+        Returns:
+            The on-hold project if found, None otherwise
+        """
+        return self.update(project_id, {"status": "on_hold"})
+
+    def cancel_project(self, project_id: int) -> Optional[Project]:
+        """
+        Cancel a project.
+
+        Args:
+            project_id: The project ID
+
+        Returns:
+            The cancelled project if found, None otherwise
+        """
+        return self.update(project_id, {"status": "cancelled"})
+
     def _validate_create(self, data: Dict[str, Any]) -> None:
         """
         Validate data before creating a project.
@@ -154,6 +176,22 @@ class ProjectService(BaseService[Project]):
         end_date = data.get("end_date", entity.end_date)
         if end_date and end_date < start_date:
             raise ValueError("End date must be after start date")
+
+        # Validate status transitions
+        if "status" in data and data["status"] != entity.status:
+            # Define valid status transitions
+            valid_transitions = {
+                "planning": ["active", "on_hold", "cancelled"],
+                "active": ["on_hold", "completed", "cancelled"],
+                "on_hold": ["active", "cancelled"],
+                "completed": [],  # Completed projects cannot transition to other statuses
+                "cancelled": [],  # Cancelled projects cannot transition to other statuses
+            }
+
+            if data["status"] not in valid_transitions.get(entity.status, []):
+                raise ValueError(
+                    f"Invalid status transition from '{entity.status}' to '{data['status']}'"
+                )
 
     def _validate_delete(self, entity: Project) -> None:
         """

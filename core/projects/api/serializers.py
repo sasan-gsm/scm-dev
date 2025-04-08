@@ -15,6 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ["id", "username", "first_name", "last_name", "email"]
         read_only_fields = fields
+        ref_name = "ProjectUserSerializer"
 
 
 class ProjectListSerializer(serializers.ModelSerializer):
