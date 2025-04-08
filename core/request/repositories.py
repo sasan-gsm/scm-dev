@@ -1,6 +1,5 @@
-from typing import Optional, List
 from django.db.models import QuerySet, Count
-from django.utils import timezone
+from typing import Optional
 from core.common.repositories import BaseRepository
 from .models import Request, RequestItem
 
@@ -19,15 +18,6 @@ class RequestRepository(BaseRepository[Request]):
         super().__init__(Request)
 
     def get_by_number(self, number: str) -> Optional[Request]:
-        """
-        Retrieve a request by its number.
-
-        Args:
-            number: The request number
-
-        Returns:
-            The request if found, None otherwise
-        """
         try:
             return self.model_class.objects.get(number=number)
         except self.model_class.DoesNotExist:
@@ -37,9 +27,6 @@ class RequestRepository(BaseRepository[Request]):
         """
         Get requests created by a specific user.
 
-        Args:
-            requester_id: The requester ID
-
         Returns:
             QuerySet of requests created by the specified user
         """
@@ -48,9 +35,6 @@ class RequestRepository(BaseRepository[Request]):
     def get_by_project(self, project_id: int) -> QuerySet:
         """
         Get requests for a specific project.
-
-        Args:
-            project_id: The project ID
 
         Returns:
             QuerySet of requests for the specified project
@@ -78,10 +62,6 @@ class RequestRepository(BaseRepository[Request]):
     def get_requests_by_date_range(self, start_date, end_date) -> QuerySet:
         """
         Get requests created within a date range.
-
-        Args:
-            start_date: The start date
-            end_date: The end date
 
         Returns:
             QuerySet of requests within the specified date range
@@ -117,9 +97,6 @@ class RequestItemRepository(BaseRepository[RequestItem]):
         """
         Get items for a specific request.
 
-        Args:
-            request_id: The request ID
-
         Returns:
             QuerySet of items for the specified request
         """
@@ -128,9 +105,6 @@ class RequestItemRepository(BaseRepository[RequestItem]):
     def get_by_material(self, material_id: int) -> QuerySet:
         """
         Get request items for a specific material.
-
-        Args:
-            material_id: The material ID
 
         Returns:
             QuerySet of request items for the specified material

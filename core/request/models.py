@@ -53,6 +53,14 @@ class Request(TimeStampedModel):
         default="draft",
         verbose_name=_("Status"),
     )
+    approver = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_requests",
+        verbose_name=_("Approver"),
+    )
     priority = models.CharField(
         max_length=10,
         choices=PRIORITY_CHOICES,

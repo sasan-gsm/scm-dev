@@ -4,7 +4,6 @@ from django.db import transaction
 from django.utils import timezone
 from core.request.models import Request, RequestItem
 from core.projects.api.serializers import ProjectListSerializer
-from core.materials.api.serializers import MaterialListSerializer
 
 User = get_user_model()
 
@@ -96,6 +95,7 @@ class RequestDetailSerializer(serializers.ModelSerializer):
             "request_date",
             "required_date",
             "status",
+            "approver",
             "priority",
             "notes",
             "fulfillment_date",
