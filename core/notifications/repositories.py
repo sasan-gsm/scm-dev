@@ -1,9 +1,56 @@
-from typing import Optional, List
-from django.db.models import Q, QuerySet
+from typing import Optional
+from django.db.models import QuerySet
 from django.utils import timezone
-
+from datetime import timedelta
 from core.common.repositories import BaseRepository
-from .models import Notification, NotificationTemplate, NotificationSetting
+from .models import Notification, NotificationTemplate, NotificationSetting, AlertRule
+
+
+class AlertRuleRepository(BaseRepository[AlertRule]):
+    """
+    Repository for AlertRule model operations.
+
+    Provides data access operations specific to the AlertRule model.
+    """
+
+    def __init__(self):
+        """
+        Initialize the repository with the AlertRule model.
+        """
+        super().__init__(AlertRule)
+
+    def get_active_rules(self) -> QuerySet:
+        """
+        Get all active alert rules.
+
+        Returns:
+            QuerySet of active alert rules
+        """
+        return self.model_class.objects.filter(is_active=True)
+
+    def get_by_type(self, alert_type: str) -> QuerySet:
+        """
+        Get alert rules of a specific type.
+
+        Args:
+            alert_type: The alert type
+
+        Returns:
+            QuerySet of alert rules of the specified type
+        """
+        return self.model_class.objects.filter(alert_type=alert_type)
+
+    def get_by_material(self, material_id: int) -> QuerySet:
+        """
+        Get alert rules for a specific material.
+
+        Args:
+            material_id: The material ID
+
+        Returns:
+            QuerySet of alert rules for the specified material
+        """
+        return self.model_class.objects.filter(material_id=material_id)
 
 
 class NotificationRepository(BaseRepository[Notification]):
@@ -65,7 +112,7 @@ class NotificationRepository(BaseRepository[Notification]):
         Returns:
             QuerySet of recent notifications
         """
-        cutoff_date = timezone.now() - timezone.timedelta(days=days)
+        cutoff_date = timezone.now() - timedelta(days=days)
         return self.model_class.objects.filter(created_at__gte=cutoff_date)
 
     def mark_as_read(self, notification_id: int) -> Optional[Notification]:
