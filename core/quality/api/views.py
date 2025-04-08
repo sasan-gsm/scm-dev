@@ -17,6 +17,7 @@ from .serializers import (
     QualityCheckCreateSerializer,
     QualityCheckUpdateSerializer,
     QualityCheckItemSerializer,
+    QualityCheckItemCreateSerializer,
 )
 
 
@@ -60,7 +61,7 @@ class QualityCheckViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
 
     def get_serializer_class(self):
-        """Return the serializer class for request."""
+        """Return the serializer class for quality check."""
         if self.action == "list":
             return QualityCheckListSerializer
         elif self.action == "create":
@@ -127,7 +128,7 @@ class QualityCheckViewSet(viewsets.ModelViewSet):
         """Submit a quality check for approval."""
         service = QualityCheckService()
         try:
-            quality_check = service.submit(pk)
+            quality_check = service.submit_quality_check(pk)
             if quality_check:
                 return Response(QualityCheckDetailSerializer(quality_check).data)
             return Response(
@@ -141,7 +142,7 @@ class QualityCheckViewSet(viewsets.ModelViewSet):
         """Approve a quality check."""
         service = QualityCheckService()
         try:
-            quality_check = service.approve(pk)
+            quality_check = service.approve_quality_check(pk)
             if quality_check:
                 return Response(QualityCheckDetailSerializer(quality_check).data)
             return Response(
@@ -155,7 +156,7 @@ class QualityCheckViewSet(viewsets.ModelViewSet):
         """Reject a quality check."""
         service = QualityCheckService()
         try:
-            quality_check = service.reject(pk)
+            quality_check = service.reject_quality_check(pk)
             if quality_check:
                 return Response(QualityCheckDetailSerializer(quality_check).data)
             return Response(
@@ -169,7 +170,7 @@ class QualityCheckViewSet(viewsets.ModelViewSet):
         """Mark a quality check as completed."""
         service = QualityCheckService()
         try:
-            quality_check = service.complete(pk)
+            quality_check = service.complete_quality_check(pk)
             if quality_check:
                 return Response(QualityCheckDetailSerializer(quality_check).data)
             return Response(
@@ -183,7 +184,7 @@ class QualityCheckViewSet(viewsets.ModelViewSet):
         """Cancel a quality check."""
         service = QualityCheckService()
         try:
-            quality_check = service.cancel(pk)
+            quality_check = service.cancel_quality_check(pk)
             if quality_check:
                 return Response(QualityCheckDetailSerializer(quality_check).data)
             return Response(
@@ -238,6 +239,30 @@ class QualityCheckItemViewSet(viewsets.ModelViewSet):
         service = QualityCheckItemService()
         try:
             item = service.update(instance.id, serializer.validated_data)
+            if item:
+                return Response(QualityCheckItemSerializer(item).data)
+            return Response(
+                {"detail": "Quality check item not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"])
+    def update_result(self, request, pk=None):
+        """Update the result of a quality check item."""
+        result = request.data.get("result")
+        is_passed = request.data.get("is_passed")
+
+        if result is None or is_passed is None:
+            return Response(
+                {"detail": "Both 'result' and 'is_passed' fields are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        service = QualityCheckItemService()
+        try:
+            item = service.update_result(pk, result, is_passed)
             if item:
                 return Response(QualityCheckItemSerializer(item).data)
             return Response(

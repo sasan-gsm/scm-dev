@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional
 from django.db.models import QuerySet
 from core.common.repositories import BaseRepository
 from .models import QualityCheck, QualityCheckItem, QualityStandard
@@ -117,14 +117,14 @@ class QualityCheckRepository(BaseRepository[QualityCheck]):
             check_date__gte=start_date, check_date__lte=end_date
         )
 
-    def get_pending_checks(self) -> QuerySet:
+    def get_submitted_checks(self) -> QuerySet:
         """
-        Get pending quality checks.
+        Get submitted quality checks that are pending approval.
 
         Returns:
-            QuerySet of pending quality checks
+            QuerySet of quality checks with submitted status
         """
-        return self.model_class.objects.filter(status="pending")
+        return self.model_class.objects.filter(status="submitted")
 
     def get_by_inspector(self, inspector_id: int) -> QuerySet:
         """
@@ -137,6 +137,18 @@ class QualityCheckRepository(BaseRepository[QualityCheck]):
             QuerySet of quality checks performed by the specified inspector
         """
         return self.model_class.objects.filter(inspector_id=inspector_id)
+
+    def get_by_batch_number(self, batch_number: str) -> QuerySet:
+        """
+        Get quality checks with a specific batch number.
+
+        Args:
+            batch_number: The batch number
+
+        Returns:
+            QuerySet of quality checks with the specified batch number
+        """
+        return self.model_class.objects.filter(batch_number=batch_number)
 
 
 class QualityCheckItemRepository(BaseRepository[QualityCheckItem]):

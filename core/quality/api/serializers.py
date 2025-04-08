@@ -132,20 +132,8 @@ class QualityCheckCreateSerializer(serializers.ModelSerializer):
             "items",
         ]
 
-    @transaction.atomic
-    def create(self, validated_data):
-        """
-        Create a new quality check with items.
-        """
-        items_data = validated_data.pop("items")
-        validated_data["status"] = "draft"
-
-        quality_check = QualityCheck.objects.create(**validated_data)
-
-        for item_data in items_data:
-            QualityCheckItem.objects.create(quality_check=quality_check, **item_data)
-
-        return quality_check
+    # Note: The create method is not needed here as it's handled by the QualityCheckService
+    # The service layer is responsible for creating the quality check and its items
 
 
 class QualityCheckUpdateSerializer(serializers.ModelSerializer):

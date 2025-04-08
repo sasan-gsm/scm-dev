@@ -1,7 +1,6 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 from django.db.models import QuerySet
 from django.db import transaction
-from django.utils import timezone
 from core.common.services import BaseService
 from .repositories import (
     QualityStandardRepository,
@@ -116,14 +115,14 @@ class QualityCheckService(BaseService[QualityCheck]):
         """
         return self.repository.get_by_date_range(start_date, end_date)
 
-    def get_pending_checks(self) -> QuerySet:
+    def get_submitted_checks(self) -> QuerySet:
         """
-        Get pending quality checks.
+        Get submitted quality checks that are pending approval.
 
         Returns:
-            QuerySet of pending quality checks
+            QuerySet of quality checks with submitted status
         """
-        return self.repository.get_pending_checks()
+        return self.repository.get_submitted_checks()
 
     def get_by_inspector(self, inspector_id: int) -> QuerySet:
         """
@@ -136,6 +135,18 @@ class QualityCheckService(BaseService[QualityCheck]):
             QuerySet of quality checks performed by the specified inspector
         """
         return self.repository.get_by_inspector(inspector_id)
+
+    def get_by_batch_number(self, batch_number: str) -> QuerySet:
+        """
+        Get quality checks with a specific batch number.
+
+        Args:
+            batch_number: The batch number
+
+        Returns:
+            QuerySet of quality checks with the specified batch number
+        """
+        return self.repository.get_by_batch_number(batch_number)
 
     def create(self, data: Dict[str, Any]) -> QualityCheck:
         """
@@ -191,7 +202,7 @@ class QualityCheckService(BaseService[QualityCheck]):
 
             return quality_check
 
-    def submit(self, quality_check_id: int) -> Optional[QualityCheck]:
+    def submit_quality_check(self, quality_check_id: int) -> Optional[QualityCheck]:
         """
         Submit a quality check for approval.
 
@@ -212,7 +223,7 @@ class QualityCheckService(BaseService[QualityCheck]):
 
         return self.update(quality_check_id, {"status": "submitted"})
 
-    def approve(self, quality_check_id: int) -> Optional[QualityCheck]:
+    def approve_quality_check(self, quality_check_id: int) -> Optional[QualityCheck]:
         """
         Approve a quality check.
 
@@ -233,7 +244,7 @@ class QualityCheckService(BaseService[QualityCheck]):
 
         return self.update(quality_check_id, {"status": "approved"})
 
-    def reject(self, quality_check_id: int) -> Optional[QualityCheck]:
+    def reject_quality_check(self, quality_check_id: int) -> Optional[QualityCheck]:
         """
         Reject a quality check.
 
@@ -254,7 +265,7 @@ class QualityCheckService(BaseService[QualityCheck]):
 
         return self.update(quality_check_id, {"status": "rejected"})
 
-    def complete(self, quality_check_id: int) -> Optional[QualityCheck]:
+    def complete_quality_check(self, quality_check_id: int) -> Optional[QualityCheck]:
         """
         Complete a quality check.
 
@@ -275,7 +286,7 @@ class QualityCheckService(BaseService[QualityCheck]):
 
         return self.update(quality_check_id, {"status": "completed"})
 
-    def cancel(self, quality_check_id: int) -> Optional[QualityCheck]:
+    def cancel_quality_check(self, quality_check_id: int) -> Optional[QualityCheck]:
         """
         Cancel a quality check.
 
