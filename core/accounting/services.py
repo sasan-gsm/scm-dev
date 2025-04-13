@@ -1,14 +1,13 @@
-from typing import Dict, List, Optional, Any
 from django.db import transaction
-from django.utils import timezone
+
 
 from .repositories import (
     InvoiceRepository,
-    ExpenseRepository,  # This should be updated if the repository name is different
+    ExpenseRepository,
     BudgetRepository,
     BudgetItemRepository,
+    PaymentRepository,
 )
-from .models import Invoice, GeneralExpense as Expense, Budget, BudgetItem
 
 
 class ExpenseService:
@@ -140,3 +139,45 @@ class InvoiceService:
         invoice.status = "paid"
         invoice.save()
         return invoice
+
+
+class PaymentService:
+    """Service for payment operations."""
+
+    def __init__(self):
+        self.repository = PaymentRepository()
+
+    def get_all(self):
+        """Get all payments."""
+        return self.repository.get_all()
+
+    def get_by_id(self, payment_id):
+        """Get payment by ID."""
+        return self.repository.get_by_id(payment_id)
+
+    def get_by_invoice(self, invoice_id):
+        """Get payments for a specific invoice."""
+        return self.repository.get_by_invoice(invoice_id)
+
+    def get_by_reference(self, reference):
+        """Get payment by reference number."""
+        return self.repository.get_by_reference(reference)
+
+    def get_by_date_range(self, start_date, end_date):
+        """Get payments within a date range."""
+        return self.repository.get_by_date_range(start_date, end_date)
+
+    @transaction.atomic
+    def create(self, data):
+        """Create a new payment."""
+        payment = self.repository.create(data)
+
+        # Check if invoice is fully paid and update its status
+        invoice = payment.invoice
+        total_paid = sum(p.amount for p in invoice.payments.all())
+
+        if total_paid >= invoice.amount:
+            invoice.status = "paid"
+            invoice.save()
+
+        return payment

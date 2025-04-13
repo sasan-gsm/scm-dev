@@ -4,17 +4,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum
-
-from core.accounting.models import (
-    GeneralExpense as Expense,
-    AccountingEntry,
-    ProjectIncome,
-)
 from core.accounting.services import (
     ExpenseService,
     BudgetService,
     BudgetItemService,
     InvoiceService,
+    PaymentService,
 )
 from .serializers import (
     ExpenseListSerializer,
@@ -25,6 +20,7 @@ from .serializers import (
     BudgetCreateSerializer,
     BudgetItemSerializer,
     InvoiceSerializer,
+    PaymentSerializer,
 )
 
 
@@ -201,7 +197,6 @@ class ProjectExpensesView(APIView):
         """Get expenses for a specific project."""
         service = ExpenseService()
         expenses = service.get_by_project(project_id)
-
         # Calculate total expenses
         total = expenses.aggregate(total=Sum("amount"))["total"] or 0
 
@@ -297,3 +292,74 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PaymentViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for payments.
+
+    Provides CRUD operations for Payment model with filtering, searching, and ordering capabilities.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = PaymentSerializer
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    filterset_fields = ["invoice", "payment_method", "created_by"]
+    search_fields = ["reference", "transaction_id", "notes"]
+    ordering_fields = ["payment_date", "amount", "created_at"]
+    ordering = ["-payment_date"]
+
+    def get_queryset(self):
+        """Get the list of payments for this view."""
+        service = PaymentService()
+        return service.get_all()
+
+    def create(self, request, *args, **kwargs):
+        """Create a new payment."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        service = PaymentService()
+        try:
+            payment = service.create(serializer.validated_data)
+            return Response(
+                PaymentSerializer(payment).data, status=status.HTTP_201_CREATED
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["get"])
+    def by_invoice(self, request):
+        """Get payments for a specific invoice."""
+        invoice_id = request.query_params.get("invoice_id")
+        if not invoice_id:
+            return Response(
+                {"detail": "Invoice ID is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        service = PaymentService()
+        payments = service.get_by_invoice(invoice_id)
+        serializer = PaymentSerializer(payments, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def by_date_range(self, request):
+        """Get payments within a date range."""
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
+
+        if not start_date or not end_date:
+            return Response(
+                {"detail": "Both start_date and end_date are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        service = PaymentService()
+        payments = service.get_by_date_range(start_date, end_date)
+        serializer = PaymentSerializer(payments, many=True)
+        return Response(serializer.data)
