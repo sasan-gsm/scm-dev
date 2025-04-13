@@ -27,9 +27,6 @@ class BaseService(Generic[T]):
         """
         Get an entity by its ID.
 
-        Args:
-            id: The entity ID
-
         Returns:
             The entity if found, None otherwise
         """
@@ -95,9 +92,6 @@ class BaseService(Generic[T]):
     def delete(self, id: int) -> bool:
         """
         Delete an entity.
-
-        Args:
-            id: The entity ID
 
         Returns:
             True if the entity was deleted, False otherwise
