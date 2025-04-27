@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import TemplateView
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -52,6 +53,8 @@ else:
     swagger_patterns = []
 
 urlpatterns = [
+    # Landing page at root URL
+    path("", TemplateView.as_view(template_name="landing.html"), name="landing"),
     path(settings.ADMIN_URL, admin.site.urls),
     path("health/", health_check, name="health_check"),
     # API endpoints
