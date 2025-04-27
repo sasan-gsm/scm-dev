@@ -47,6 +47,7 @@ django-celery-email==3.0.0
 django-haystack==3.2.1
 elasticsearch==7.17.9
 elasticsearch-dsl==7.4.1
+django-elasticsearch-dsl-drf==0.22.5
 drf-haystack==1.9.1
 
 # Performance & Debugging
