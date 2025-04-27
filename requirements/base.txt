@@ -28,7 +28,7 @@ django-crispy-forms==2.0
 crispy-bootstrap4==2022.1
 
 # API Documentation
-drf-yasg==1.20.0
+drf-yasg==1.21.10
 
 # Utilities
 django-countries==7.2.1
@@ -45,17 +45,9 @@ django-celery-email==3.0.0
 
 # Search
 django-haystack==3.2.1
-elasticsearch==7.17.9
-elasticsearch-dsl==7.4.1
 drf-haystack==1.9.1
 
 # Performance & Debugging
 django-extensions==3.2.3
 django-cacheops==7.0.2
 
-# Excel handling
-openpyxl==3.1.2
-
-# Data processing - using Polars instead of Pandas
-polars==1.26.0
-pyarrow==19.0.0  # Required for Polars to work with Arrow format
