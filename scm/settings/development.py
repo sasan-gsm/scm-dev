@@ -18,7 +18,7 @@ DEBUG = getenv("DEBUG")
 
 SITE_NAME = getenv("SITE_NAME")
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = getenv("ALLOWED_HOSTS").split(",")
 
 # Read the DATABASE_URL environment variable
 DATABASE_URL = getenv("DATABASE_URL")
