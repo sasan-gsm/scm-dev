@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements/base.txt requirements/base.txt
 COPY requirements/development.txt requirements/development.txt
 RUN pip install --no-cache-dir -r requirements/development.txt
+RUN pip install --no-cache-dir gunicorn  # install gunicorn too!
 
 # Copy project
 COPY . .
@@ -25,5 +26,5 @@ RUN useradd -m appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
-# Run server
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Run migrations and then start the app
+CMD ["sh", "-c", "python manage.py migrate && gunicorn scm.wsgi:application --bind 0.0.0.0:8000"]
