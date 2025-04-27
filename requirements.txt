@@ -28,7 +28,7 @@ django-crispy-forms==2.0
 crispy-bootstrap4==2022.1
 
 # API Documentation
-drf-yasg==1.20.0
+drf-yasg==1.21.10
 
 # Utilities
 django-countries==7.2.1
