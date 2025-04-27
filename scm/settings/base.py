@@ -6,7 +6,7 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-local_env_file = path.join(BASE_DIR, ".envs", ".env.local")
+local_env_file = path.join(BASE_DIR, ".envs", ".env.development")
 
 if path.isfile(local_env_file):
     load_dotenv(local_env_file)

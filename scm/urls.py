@@ -80,9 +80,9 @@ urlpatterns = [
 ] + swagger_patterns
 
 # Debug toolbar only in development
-if settings.DEBUG and "debug_toolbar" in settings.INSTALLED_APPS:
-    import debug_toolbar
+# if settings.DEBUG and "debug_toolbar" in settings.INSTALLED_APPS:
+#     import debug_toolbar
 
-    urlpatterns = [
-        path("__debug__/", include(debug_toolbar.urls)),
-    ] + urlpatterns
+#     urlpatterns = [
+#         path("__debug__/", include(debug_toolbar.urls)),
+#     ] + urlpatterns

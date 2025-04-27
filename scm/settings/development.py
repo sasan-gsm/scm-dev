@@ -4,6 +4,8 @@ from .base import BASE_DIR
 from os import getenv, path
 from datetime import timedelta
 
+import dj_database_url
+
 local_env_file = path.join(BASE_DIR, ".envs", ".env.development")
 
 if path.isfile(local_env_file):
@@ -18,16 +20,21 @@ SITE_NAME = getenv("SITE_NAME")
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
-# Database configuration for development
+# Read the DATABASE_URL environment variable
+DATABASE_URL = getenv("DATABASE_URL")
+
+# Default database (for local dev)
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600,  # keeps DB connections alive (important for production)
+        ssl_require=True,  # Render DBs require SSL
+    )
 }
+
 # Debug toolbar
-INSTALLED_APPS += ["debug_toolbar"]
-MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
+# INSTALLED_APPS += ["debug_toolbar"]
+# MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
 INTERNAL_IPS = ["127.0.0.1"]
 
 ADMIN_URL = getenv("ADMIN_URL")
