@@ -9,15 +9,6 @@ router.register(r"expenses", views.ExpenseViewSet, basename="expense")
 router.register(r"budgets", views.BudgetViewSet, basename="budget")
 router.register(r"invoices", views.InvoiceViewSet, basename="invoice")
 
-# Elasticsearch document viewsets
-es_router = DefaultRouter()
-es_router.register(
-    r"search/invoices", es_views.InvoiceDocumentViewSet, basename="invoice-search"
-)
-es_router.register(
-    r"search/payments", es_views.PaymentDocumentViewSet, basename="payment-search"
-)
-
 app_name = "accounting"
 
 urlpatterns = [
