@@ -11,31 +11,6 @@ local_env_file = path.join(BASE_DIR, ".envs", ".env.development")
 if path.isfile(local_env_file):
     load_dotenv(local_env_file)
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",  # Django development server
-    "http://127.0.0.1:8000",
-]
-
-CORS_ALLOW_METHODS = [
-    "DELETE",
-    "GET",
-    "OPTIONS",
-    "PATCH",
-    "POST",
-    "PUT",
-]
-
-CORS_ALLOW_HEADERS = [
-    "accept",
-    "accept-encoding",
-    "authorization",
-    "content-type",
-    "dnt",
-    "origin",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
-]
 # Application definition
 
 DJANGO_APPS = [
@@ -87,6 +62,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -287,7 +263,9 @@ ADMIN_URL = "secretgateway/"
 
 STATIC_URL = "/static/"
 
-STATIC_ROOT = str(BASE_DIR / "staticfiles")
+STATIC_ROOT = path.join(BASE_DIR, 'staticfiles')
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/mediafiles/"
 
