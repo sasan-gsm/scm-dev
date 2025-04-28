@@ -34,4 +34,4 @@ CMD ["sh", "-c", "\
     User.objects.filter(username='test_admin').exists() or User.objects.create_superuser('test_admin', 'test_admin@example.com', '@QAZ123'); \
     User.objects.filter(username='test_sassan').exists() or User.objects.create_superuser('test_sassan', 'test_sassan@example.com', '@123')\" \
     | python manage.py shell && \
-    gunicorn your_project_name.wsgi:application --bind 0.0.0.0:8000 --workers=1"]
+    gunicorn scm.wsgi:application --bind 0.0.0.0:8000 --workers=1"]
