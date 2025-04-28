@@ -13,7 +13,6 @@ app_name = "accounting"
 
 urlpatterns = [
     path("", include(router.urls)),
-    path("", include(es_router.urls)),  # Include Elasticsearch endpoints
     # Add any custom endpoints here
     path(
         "budget-items/<int:budget_id>/",
