@@ -1,8 +1,11 @@
+# Use slim Python base
 FROM python:3.11-slim
 
+# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+# Set working directory
 WORKDIR /app
 
 # Install system dependencies
@@ -18,18 +21,21 @@ COPY requirements/development.txt requirements/development.txt
 RUN pip install --no-cache-dir -r requirements/development.txt
 RUN pip install --no-cache-dir gunicorn whitenoise
 
-# Copy project
+# Copy project files
 COPY . .
 
-# Run as non-root user
+# Copy the startup script
+COPY start.sh /app/start.sh
+
+# Make startup script executable
+RUN chmod +x /app/start.sh
+
+# Create a non-root user
 RUN useradd -m appuser
 RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
 USER appuser
 
-# Run migrations, collect static, create superusers, then start app
-CMD ["sh", "-c", "\
-    python manage.py migrate && \
-    python manage.py collectstatic --noinput && \
-    echo \"from django.contrib.auth import get_user_model; User = get_user_model(); \
-    | python manage.py shell && \
-    gunicorn scm.wsgi:application --bind 0.0.0.0:8000 --workers=1"]
+# Use the script to run all setup and start the server
+CMD ["sh", "/app/start.sh"]
